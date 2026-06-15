@@ -1,7 +1,7 @@
 {
   "name": "MovieHop",
   "short_name": "MovieHop",
-  "description": "영화 퀴즈를 맞혀야 별점을 남길 수 있는 영화 평점 서비스",
+  "description": "영화 문제를 맞혀야 별점을 남길 수 있는 영화 평점 서비스",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f7f8fa",

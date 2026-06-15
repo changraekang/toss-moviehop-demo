@@ -9,13 +9,15 @@ const modalRoot =
     ? document.getElementById("modal-root") ?? document.body
     : null;
 
-// 영화 상세 + 평점 등록(퀴즈 게이팅) + 리뷰. 모바일에선 바텀시트.
+// 영화 상세 + 평점 등록(문제 게이팅) + 리뷰. 모바일에선 바텀시트.
 function MovieModal({
   movie,
   isLoggedIn,
   myRating,
+  quizCompleted,
   ratingPending,
   onRateAttempt,
+  onStartQuiz,
   onClose,
 }) {
   const movieId = movie?._id;
@@ -105,20 +107,27 @@ function MovieModal({
         <Body>
           <RateBox>
             <RateTitle>내 평점</RateTitle>
-            <StarRating
-              value={myRating ?? 0}
-              onRate={(v) => onRateAttempt(v)}
-              disabled={ratingPending}
-              size={36}
-            />
+            <StarWrap>
+              <StarRating
+                value={myRating ?? 0}
+                onRate={(v) => onRateAttempt(v)}
+                disabled={ratingPending || !quizCompleted}
+                size={36}
+              />
+              {!quizCompleted && (
+                <QuizLock type="button" onClick={onStartQuiz} aria-label="문제 풀기">
+                  <span>?</span>
+                </QuizLock>
+              )}
+            </StarWrap>
             <RateHint>
               {ratingPending
                 ? "평점을 등록하는 중입니다…"
+                : !quizCompleted
+                ? "별점을 주려면 먼저 문제를 맞혀야 해요. ? 를 눌러보세요."
                 : myRating != null
                 ? `${formatAverage(myRating)}점을 주셨어요. 별을 눌러 수정할 수 있어요.`
-                : isLoggedIn
-                ? "별을 누르면 퀴즈를 푼 뒤 평점이 등록됩니다."
-                : "별을 누르면 로그인 화면으로 이동합니다."}
+                : "별을 눌러 평점을 남겨보세요."}
             </RateHint>
           </RateBox>
 
@@ -417,6 +426,41 @@ const ReviewBody = styled.p`
   color: ${({ theme }) => theme.colors.text};
   opacity: 0.85;
   line-height: 1.6;
+`;
+
+const StarWrap = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-self: flex-start;
+`;
+
+const QuizLock = styled.button`
+  position: absolute;
+  inset: -6px -12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.45);
+
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: ${({ theme }) => theme.colors.primary};
+    color: #fff;
+    font-size: 21px;
+    font-weight: 800;
+    box-shadow: 0 6px 16px rgba(104, 71, 37, 0.3);
+  }
+  &:active span {
+    transform: scale(0.94);
+  }
 `;
 
 export default MovieModal;

@@ -8,7 +8,7 @@ const modalRoot =
     ? document.getElementById("modal-root") ?? document.body
     : null;
 
-// 별점을 매기기 전에 풀어야 하는 영화 퀴즈 (다크 / 모바일 바텀시트)
+// 별점을 매기기 전에 풀어야 하는 영화 문제 (다크 / 모바일 바텀시트)
 function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,7 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
       const data = await fetchQuiz(movieId);
       setQuiz(data);
     } catch (err) {
-      setError(err.message ?? "퀴즈를 불러오지 못했습니다.");
+      setError(err.message ?? "문제를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -72,8 +72,8 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
         <Grabber />
         <Header>
           <div>
-            <Badge>QUIZ</Badge>
-            <Title>별점을 매기려면 퀴즈를 풀어주세요</Title>
+            <Badge>문제</Badge>
+            <Title>문제를 맞히면 별점을 줄 수 있어요</Title>
             {movieTitle && <Subtitle>{movieTitle}</Subtitle>}
           </div>
           <CloseButton type="button" onClick={onClose} aria-label="닫기">
@@ -81,7 +81,7 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
           </CloseButton>
         </Header>
 
-        {loading && <State>퀴즈를 불러오는 중입니다…</State>}
+        {loading && <State>문제를 불러오는 중입니다…</State>}
         {error && !loading && <State $error>{error}</State>}
 
         {!loading && !error && quiz && (

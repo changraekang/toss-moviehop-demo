@@ -43,13 +43,43 @@ const theme = {
 };
 
 const GlobalStyle = createGlobalStyle`
+  @font-face {
+    font-family: "Paperlogy";
+    src: url("/fonts/Paperlogy-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Paperlogy";
+    src: url("/fonts/Paperlogy-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Paperlogy";
+    src: url("/fonts/Paperlogy-SemiBold.woff2") format("woff2");
+    font-weight: 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Paperlogy";
+    src: url("/fonts/Paperlogy-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Paperlogy";
+    src: url("/fonts/Paperlogy-ExtraBold.woff2") format("woff2");
+    font-weight: 800;
+    font-display: swap;
+  }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
     background: ${theme.colors.background};
     color: ${theme.colors.text};
-    font-family: "Pretendard Variable", "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Paperlogy", "Pretendard Variable", "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -71,12 +101,12 @@ function App() {
 
   const [view, setView] = useState("home"); // "home" | "auth" | "link"
   const [homeTab, setHomeTab] = useState("movies"); // "movies" | "new"
-  const [authMode, setAuthMode] = useState("login");
   const [authNotice, setAuthNotice] = useState(null);
   const [linkNotice, setLinkNotice] = useState(null);
 
   const [selectedMovieId, setSelectedMovieId] = useState(null);
   const [userRatings, setUserRatings] = useState({});
+  const [completions, setCompletions] = useState({}); // { movieId: bool }
   const [ratingPendingId, setRatingPendingId] = useState(null);
   const [quizState, setQuizState] = useState(null);
   const [toast, setToast] = useState(null);
@@ -93,7 +123,7 @@ function App() {
       try {
         const params = { page: pageToLoad, limit: PAGE_SIZE };
         if (homeTab === "new") params.recentDays = RECENT_DAYS; // 신작 탭
-        else params.onlyWithQuiz = true; // 퀴즈 영화 탭
+        else params.onlyWithQuiz = true; // 영화 목록 탭
         const data = await fetchMovies(params);
         const list = Array.isArray(data?.movies) ? data.movies : [];
         setMovies((prev) => (replace ? list : [...prev, ...list]));
@@ -207,21 +237,24 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 모달 연 영화 1개만 내 평점 조회
+  // 모달 연 영화 1개만: 내 평점 + 문제 완료여부 조회
   useEffect(() => {
     if (!token || !selectedMovieId) return;
     let ignore = false;
     (async () => {
-      try {
-        const data = await fetchMyRating(selectedMovieId, token);
-        if (!ignore) {
-          setUserRatings((prev) => ({
-            ...prev,
-            [selectedMovieId]: data?.rating ?? null,
-          }));
-        }
-      } catch {
-        /* 무시 */
+      const [rating, comp] = await Promise.all([
+        fetchMyRating(selectedMovieId, token).catch(() => null),
+        fetchQuizCompletion(selectedMovieId, token).catch(() => ({ completed: false })),
+      ]);
+      if (!ignore) {
+        setUserRatings((prev) => ({
+          ...prev,
+          [selectedMovieId]: rating?.rating ?? null,
+        }));
+        setCompletions((prev) => ({
+          ...prev,
+          [selectedMovieId]: Boolean(comp?.completed),
+        }));
       }
     })();
     return () => {
@@ -240,13 +273,6 @@ function App() {
     () => movies.find((m) => m._id === selectedMovieId) ?? null,
     [movies, selectedMovieId]
   );
-
-  const handleAuthenticated = (nextToken, nextUser) => {
-    signIn(nextToken, nextUser);
-    setAuthNotice(null);
-    setView("home");
-    setToast("로그인되었습니다.");
-  };
 
   const handleLogout = () => {
     signOut();
@@ -302,7 +328,7 @@ function App() {
         }
       } catch (err) {
         setRatingPendingId(null);
-        setToast(`퀴즈 확인 실패: ${err.message}`);
+        setToast(`문제 확인 실패: ${err.message}`);
       }
     },
     [isLoggedIn, token, doSubmitRating]
@@ -311,7 +337,11 @@ function App() {
   const handleQuizSolved = async () => {
     const pending = quizState;
     setQuizState(null);
-    if (pending) await doSubmitRating(pending.movieId, pending.pendingRating);
+    if (!pending) return;
+    setCompletions((prev) => ({ ...prev, [pending.movieId]: true }));
+    if (pending.pendingRating != null) {
+      await doSubmitRating(pending.movieId, pending.pendingRating);
+    }
   };
 
   return (
@@ -333,18 +363,13 @@ function App() {
         {view === "home" && !isLoggedIn && (
           <GuestArea>
             <GuestHero>
-              <HeroEyebrow>MOVIE QUIZ · 진짜 본 사람만</HeroEyebrow>
+              <HeroEyebrow>MOVIE-HOP · 진짜 본 사람만</HeroEyebrow>
               <HeroTitle>진짜 본 사람만 별점을 남깁니다</HeroTitle>
               <HeroSub>
-                로그인하고 영화 퀴즈를 맞히면 별점을 남길 수 있어요.
+                로그인하고 영화 문제를 맞히면 별점을 남길 수 있어요.
               </HeroSub>
             </GuestHero>
-            <AuthView
-              mode={authMode}
-              onModeChange={setAuthMode}
-              onAuthenticated={handleAuthenticated}
-              notice={authNotice}
-            />
+            <AuthView notice={authNotice} />
           </GuestArea>
         )}
 
@@ -356,7 +381,7 @@ function App() {
                 $active={homeTab === "movies"}
                 onClick={() => setHomeTab("movies")}
               >
-                퀴즈 영화
+                영화 목록
               </Tab>
               <Tab
                 type="button"
@@ -373,43 +398,56 @@ function App() {
               <Placeholder>
                 {homeTab === "new"
                   ? "최근 개봉작이 아직 없어요."
-                  : "퀴즈가 등록된 영화가 아직 없어요."}
+                  : "아직 등록된 영화가 없어요."}
               </Placeholder>
             )}
 
             {!loading && !error && movies.length > 0 && (
               <>
                 <CountText>
-                  {homeTab === "new" ? "신작" : "퀴즈 영화"} {total}편
+                  {homeTab === "new" ? "신작" : "영화 목록"} {total}편
                 </CountText>
                 <Grid>
                   {movies.map((movie) => (
-                    <Card
-                      key={movie._id}
-                      onClick={() => setSelectedMovieId(movie._id)}
-                    >
-                      <PosterWrap>
-                        {movie.posterUrl ? (
-                          <Poster
-                            src={movie.posterUrl}
-                            alt={`${movie.title} 포스터`}
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        ) : (
-                          <PosterFallback>포스터 없음</PosterFallback>
-                        )}
-                        <RatingBadge>
-                          <span>★</span>
-                          {formatAverage(movie.ratingAverage)}
-                        </RatingBadge>
-                      </PosterWrap>
+                    <Card key={movie._id}>
+                      <PosterArea
+                        type="button"
+                        onClick={() => setSelectedMovieId(movie._id)}
+                        aria-label={`${movie.title} 정보 보기`}
+                      >
+                        <PosterWrap>
+                          {movie.posterUrl ? (
+                            <Poster
+                              src={movie.posterUrl}
+                              alt={`${movie.title} 포스터`}
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          ) : (
+                            <PosterFallback>포스터 없음</PosterFallback>
+                          )}
+                        </PosterWrap>
+                      </PosterArea>
                       <CardBody>
-                        <CardTitle>{movie.title}</CardTitle>
-                        <CardMeta>
-                          {formatYear(movie.releaseDate)} · 평가{" "}
-                          {movie.ratingCount ?? 0}
-                        </CardMeta>
+                        <Info
+                          type="button"
+                          onClick={() => setSelectedMovieId(movie._id)}
+                        >
+                          <CardTitle>{movie.title}</CardTitle>
+                          <CardMeta>
+                            {formatYear(movie.releaseDate)} · ★{" "}
+                            {formatAverage(movie.ratingAverage)} (
+                            {movie.ratingCount ?? 0})
+                          </CardMeta>
+                        </Info>
+                        <RateRow>
+                          <StarRating
+                            value={userRatings[movie._id] ?? 0}
+                            onRate={(v) => handleRateAttempt(movie._id, v)}
+                            disabled={ratingPendingId === movie._id}
+                            size={22}
+                          />
+                        </RateRow>
                       </CardBody>
                     </Card>
                   ))}
@@ -429,9 +467,13 @@ function App() {
           movie={selectedMovie}
           isLoggedIn={isLoggedIn}
           myRating={userRatings[selectedMovie._id] ?? null}
+          quizCompleted={completions[selectedMovie._id] ?? false}
           ratingPending={ratingPendingId === selectedMovie._id}
           onRateAttempt={(value) =>
             handleRateAttempt(selectedMovie._id, value)
+          }
+          onStartQuiz={() =>
+            setQuizState({ movieId: selectedMovie._id, pendingRating: null })
           }
           onClose={() => setSelectedMovieId(null)}
         />
@@ -586,8 +628,8 @@ const Placeholder = styled.div`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px 12px;
+  grid-template-columns: 1fr; /* 모바일: 한 줄 리스트 */
+  gap: 10px;
 
   @media (min-width: 560px) {
     grid-template-columns: repeat(3, 1fr);
@@ -598,32 +640,49 @@ const Grid = styled.div`
   }
 `;
 
+const Card = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 14px;
+  padding: 10px;
+
+  @media (min-width: 560px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+`;
+
 const PosterWrap = styled.div`
   position: relative;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
   background: ${({ theme }) => theme.colors.surfaceAlt};
   aspect-ratio: 2 / 3;
-  box-shadow: 0 8px 22px rgba(104, 71, 37, 0.16);
+  box-shadow: 0 6px 16px rgba(104, 71, 37, 0.14);
+  transition: box-shadow 0.18s ease;
 `;
 
-const Card = styled.button`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+const PosterArea = styled.button`
   border: none;
   background: transparent;
-  text-align: left;
   padding: 0;
   cursor: pointer;
-  transition: transform 0.18s ease;
+  width: 66px;
+  flex-shrink: 0;
 
-  &:active {
-    transform: scale(0.97);
+  @media (min-width: 560px) {
+    width: 100%;
   }
   @media (hover: hover) {
     &:hover ${PosterWrap} {
-      box-shadow: 0 12px 28px rgba(107, 74, 38, 0.22);
+      box-shadow: 0 12px 26px rgba(107, 74, 38, 0.22);
     }
   }
 `;
@@ -642,52 +701,53 @@ const PosterFallback = styled.div`
   justify-content: center;
   color: ${({ theme }) => theme.colors.secondaryText};
   font-weight: 600;
-  font-size: 13px;
-`;
-
-const RatingBadge = styled.div`
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
-  color: #fff;
-  background: rgba(10, 11, 15, 0.72);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-
-  span {
-    color: ${({ theme }) => theme.colors.gold};
-  }
 `;
 
 const CardBody = styled.div`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const Info = styled.button`
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 0 2px;
 `;
 
 const CardTitle = styled.h2`
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
   color: ${({ theme }) => theme.colors.text};
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+
+  @media (min-width: 560px) {
+    font-size: 14px;
+    -webkit-line-clamp: 1;
+  }
 `;
 
 const CardMeta = styled.span`
   font-size: 12px;
   color: ${({ theme }) => theme.colors.secondaryText};
+`;
+
+const RateRow = styled.div`
+  display: flex;
+  align-items: center;
 `;
 
 const Sentinel = styled.div`
