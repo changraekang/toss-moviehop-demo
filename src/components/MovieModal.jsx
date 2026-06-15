@@ -1,180 +1,89 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
+import StarRating from "./StarRating.jsx";
+import { fetchMovieReviews, fetchMovieRating } from "../api.js";
 
 const modalRoot =
   typeof document !== "undefined"
     ? document.getElementById("modal-root") ?? document.body
     : null;
 
+// 영화 상세 + 평점 등록(퀴즈 게이팅) + 리뷰
 function MovieModal({
-  apiBaseUrl,
   movie,
-  movieId,
+  isLoggedIn,
+  myRating,
+  ratingPending,
+  onRateAttempt,
   onClose,
-  onSubmitRating,
-  token,
 }) {
-  const [details, setDetails] = useState(movie ?? null);
+  const movieId = movie?._id;
   const [reviews, setReviews] = useState([]);
-  const [ratingStats, setRatingStats] = useState({
+  const [stats, setStats] = useState({
     average: movie?.ratingAverage ?? 0,
     count: movie?.ratingCount ?? 0,
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [ratingValue, setRatingValue] = useState(movie?.ratingAverage ?? 0);
-  const [ratingFeedback, setRatingFeedback] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
+    const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = originalOverflow;
+      document.body.style.overflow = original;
+      window.removeEventListener("keydown", onKey);
     };
-  }, []);
-
-  useEffect(() => {
-    setDetails(movie ?? null);
-    setRatingStats({
-      average: movie?.ratingAverage ?? 0,
-      count: movie?.ratingCount ?? 0,
-    });
-    setRatingValue(movie?.ratingAverage ?? 0);
-  }, [movie, movieId]);
-
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   useEffect(() => {
-    if (!movieId || !apiBaseUrl) return;
+    if (!movieId) return;
     let ignore = false;
+    setLoading(true);
 
-    async function loadData() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const [detailRes, reviewRes, ratingRes] = await Promise.all([
-          fetch(`${apiBaseUrl}/movies/${movieId}`),
-          fetch(`${apiBaseUrl}/review/movie/${movieId}`),
-          fetch(`${apiBaseUrl}/ratings/movie/${movieId}`),
-        ]);
-
-        if (!ignore) {
-          if (detailRes.ok) {
-            const detailData = await detailRes.json();
-            setDetails(detailData);
-          } else if (!details) {
-            const detailPayload = await detailRes.json().catch(() => ({}));
-            throw new Error(
-              detailPayload?.error ?? "영화 상세 정보를 불러오지 못했습니다.",
-            );
-          }
-
-          if (reviewRes.ok) {
-            const reviewData = await reviewRes.json();
-            setReviews(reviewData);
-          } else {
-            setReviews([]);
-          }
-
-          if (ratingRes.ok) {
-            const ratingData = await ratingRes.json();
-            setRatingStats({
-              average: ratingData?.average ?? 0,
-              count: ratingData?.count ?? 0,
-            });
-            if (typeof ratingData?.average === "number") {
-              setRatingValue(ratingData.average);
-            }
-          }
-        }
-      } catch (loadError) {
-        if (!ignore) {
-          setError(loadError.message ?? "상세 정보를 불러오지 못했습니다.");
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
+    Promise.all([
+      fetchMovieReviews(movieId).catch(() => []),
+      fetchMovieRating(movieId).catch(() => null),
+    ]).then(([reviewData, ratingData]) => {
+      if (ignore) return;
+      setReviews(Array.isArray(reviewData) ? reviewData : []);
+      if (ratingData) {
+        setStats({
+          average: ratingData.average ?? 0,
+          count: ratingData.count ?? 0,
+        });
       }
-    }
-
-    loadData();
+      setLoading(false);
+    });
 
     return () => {
       ignore = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiBaseUrl, movieId]);
+  }, [movieId]);
 
-  const fallbackPoster = useMemo(
-    () => details?.posterUrl ?? movie?.posterUrl ?? "",
-    [details, movie],
-  );
+  // 별점 등록이 반영되면 평균 표시 갱신 (movie prop 이 부모에서 업데이트됨)
+  useEffect(() => {
+    setStats({
+      average: movie?.ratingAverage ?? 0,
+      count: movie?.ratingCount ?? 0,
+    });
+  }, [movie?.ratingAverage, movie?.ratingCount]);
 
-  const handleOverlayClick = (event) => {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
-  };
+  const poster = useMemo(() => movie?.posterUrl ?? "", [movie]);
 
-  const handleSubmitRating = async (event) => {
-    event.preventDefault();
-    if (submitting) return;
-
-    setRatingFeedback(null);
-    setSubmitting(true);
-
-    try {
-      const numericValue = Number(ratingValue);
-      const payload = await onSubmitRating(movieId, numericValue);
-      if (payload?.stats) {
-        setRatingStats((prev) => ({
-          average: payload.stats.average ?? numericValue,
-          count: payload.stats.count ?? prev.count,
-        }));
-        if (typeof payload.stats.average === "number") {
-          setRatingValue(payload.stats.average);
-        }
-      }
-      setRatingFeedback({
-        tone: "success",
-        text: "평점이 저장되었습니다.",
-      });
-    } catch (submitError) {
-      setRatingFeedback({
-        tone: "error",
-        text:
-          submitError?.message ??
-          "평점 업데이트 중 문제가 발생했습니다. 토큰 또는 네트워크를 확인하세요.",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (!modalRoot) return null;
+  if (!modalRoot || !movie) return null;
 
   return createPortal(
-    <Overlay onClick={handleOverlayClick}>
+    <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
       <Dialog role="dialog" aria-modal="true">
         <ModalHeader>
           <div>
-            <ModalTitle>{details?.title ?? "제목 미확인"}</ModalTitle>
+            <ModalTitle>{movie.title}</ModalTitle>
             <ModalSubtitle>
-              {formatYear(details?.releaseDate)} ·{" "}
-              {details?.genres?.join(", ") ?? "장르 정보 없음"}
+              {formatYear(movie.releaseDate)}
+              {movie.genres?.length ? ` · ${movie.genres.join(", ")}` : ""}
+              {movie.runtime ? ` · ${movie.runtime}분` : ""}
             </ModalSubtitle>
           </div>
           <CloseButton type="button" onClick={onClose} aria-label="닫기">
@@ -182,135 +91,91 @@ function MovieModal({
           </CloseButton>
         </ModalHeader>
 
-        <ModalBody>
-          {loading && <StateMessage>불러오는 중입니다…</StateMessage>}
-          {error && !loading && <StateMessage error>{error}</StateMessage>}
-          {!loading && !error && (
-            <>
-              <HeroSection>
-                {fallbackPoster ? (
-                  <ModalPoster src={fallbackPoster} alt="영화 포스터" />
-                ) : (
-                  <PosterPlaceholder>포스터 없음</PosterPlaceholder>
-                )}
-
-                <HeroInfo>
-                  <InfoList>
-                    <InfoRow>
-                      <InfoKey>개봉</InfoKey>
-                      <InfoValue>{formatDate(details?.releaseDate)}</InfoValue>
-                    </InfoRow>
-                    <InfoRow>
-                      <InfoKey>평점</InfoKey>
-                      <InfoValue>
-                        ⭐ {formatAverage(ratingStats.average)} ·{" "}
-                        {ratingStats.count}명
-                      </InfoValue>
-                    </InfoRow>
-                    {details?.runtime ? (
-                      <InfoRow>
-                        <InfoKey>러닝타임</InfoKey>
-                        <InfoValue>{details.runtime}분</InfoValue>
-                      </InfoRow>
-                    ) : null}
-                    {details?.director ? (
-                      <InfoRow>
-                        <InfoKey>감독</InfoKey>
-                        <InfoValue>{details.director}</InfoValue>
-                      </InfoRow>
-                    ) : null}
-                  </InfoList>
-
-                  <RatingSection onSubmit={handleSubmitRating}>
-                    <RatingHeader>평점 업데이트</RatingHeader>
-                    <RatingControl>
-                      <RatingLabel htmlFor="rating-range">
-                        ⭐ {formatAverage(ratingValue)}
-                      </RatingLabel>
-                      <RatingRange
-                        id="rating-range"
-                        min="0"
-                        max="5"
-                        step="0.1"
-                        value={ratingValue}
-                        onChange={(event) =>
-                          setRatingValue(Number(event.target.value))
-                        }
-                      />
-                    </RatingControl>
-                    <RatingButton type="submit" disabled={submitting}>
-                      {submitting ? "저장 중…" : "평점 저장"}
-                    </RatingButton>
-                    {!token && (
-                      <HintText>
-                        * 평점을 저장하려면 상단에 JWT 토큰을 입력해야 합니다.
-                      </HintText>
-                    )}
-                    {ratingFeedback && (
-                      <HintText tone={ratingFeedback.tone}>
-                        {ratingFeedback.text}
-                      </HintText>
-                    )}
-                  </RatingSection>
-                </HeroInfo>
-              </HeroSection>
-
-              <OverviewSection>
-                <SectionTitle>줄거리</SectionTitle>
-                <OverviewText>
-                  {details?.overview ?? "등록된 줄거리 정보가 없습니다."}
-                </OverviewText>
-              </OverviewSection>
-
-              <ReviewSection>
-                <SectionTitle>리뷰</SectionTitle>
-                {reviews.length === 0 ? (
-                  <EmptyReview>아직 등록된 리뷰가 없습니다.</EmptyReview>
-                ) : (
-                  <ReviewList>
-                    {reviews.map((review) => (
-                      <ReviewItem key={review._id ?? review.createdAt}>
-                        <ReviewHeader>
-                          <ReviewerName>
-                            {review.username ?? "익명 사용자"}
-                          </ReviewerName>
-                          <ReviewDate>
-                            {formatDate(review.createdAt)}
-                          </ReviewDate>
-                        </ReviewHeader>
-                        <ReviewContent>{review.content}</ReviewContent>
-                      </ReviewItem>
-                    ))}
-                  </ReviewList>
-                )}
-              </ReviewSection>
-            </>
+        <Hero>
+          {poster ? (
+            <Poster src={poster} alt={`${movie.title} 포스터`} />
+          ) : (
+            <PosterFallback>포스터 없음</PosterFallback>
           )}
-        </ModalBody>
+
+          <HeroInfo>
+            <AverageBlock>
+              <StarRating value={stats.average} readOnly size={24} />
+              <AverageText>
+                {formatAverage(stats.average)}
+                <Count> · {stats.count}명 참여</Count>
+              </AverageText>
+            </AverageBlock>
+
+            <RateBox>
+              <RateTitle>내 평점</RateTitle>
+              <StarRating
+                value={myRating ?? 0}
+                onRate={(v) => onRateAttempt(v)}
+                disabled={ratingPending}
+                size={34}
+              />
+              <RateHint>
+                {ratingPending
+                  ? "평점을 등록하는 중입니다…"
+                  : myRating != null
+                  ? `현재 ${formatAverage(myRating)}점을 주셨어요. 별을 눌러 수정할 수 있어요.`
+                  : isLoggedIn
+                  ? "별을 누르면 퀴즈를 푼 뒤 평점이 등록됩니다."
+                  : "별을 누르면 로그인 화면으로 이동합니다."}
+              </RateHint>
+            </RateBox>
+          </HeroInfo>
+        </Hero>
+
+        <Section>
+          <SectionTitle>줄거리</SectionTitle>
+          <Overview>
+            {movie.overview || "등록된 줄거리 정보가 없습니다."}
+          </Overview>
+        </Section>
+
+        <Section>
+          <SectionTitle>리뷰</SectionTitle>
+          {loading ? (
+            <Empty>불러오는 중입니다…</Empty>
+          ) : reviews.length === 0 ? (
+            <Empty>아직 등록된 리뷰가 없습니다.</Empty>
+          ) : (
+            <ReviewList>
+              {reviews.map((review) => (
+                <ReviewItem key={review._id ?? review.createdAt}>
+                  <ReviewHead>
+                    <Reviewer>{review.username ?? "익명"}</Reviewer>
+                    <ReviewDate>{formatDate(review.createdAt)}</ReviewDate>
+                  </ReviewHead>
+                  <ReviewBody>{review.content}</ReviewBody>
+                </ReviewItem>
+              ))}
+            </ReviewList>
+          )}
+        </Section>
       </Dialog>
     </Overlay>,
-    modalRoot,
+    modalRoot
   );
 }
 
 function formatYear(value) {
   if (!value) return "연도 정보 없음";
-  const year = new Date(value).getFullYear();
-  return Number.isNaN(year) ? "연도 정보 없음" : `${year}년`;
+  const y = new Date(value).getFullYear();
+  return Number.isNaN(y) ? "연도 정보 없음" : `${y}년`;
 }
 
 function formatDate(value) {
-  if (!value) return "정보 없음";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "정보 없음";
-  }
-  return date.toLocaleDateString("ko-KR");
+  if (!value) return "";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ko-KR");
 }
 
 function formatAverage(value) {
   if (typeof value !== "number" || Number.isNaN(value)) return "0.0";
-  return Number(value).toFixed(1);
+  return value.toFixed(1);
 }
 
 const Overlay = styled.div`
@@ -325,16 +190,19 @@ const Overlay = styled.div`
 `;
 
 const Dialog = styled.div`
-  width: min(860px, 100%);
-  background: #ffffff;
+  width: min(820px, 100%);
+  background: #fff;
   border-radius: 24px;
   padding: 28px;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.2);
   max-height: calc(100vh - 80px);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 
   @media (max-width: 640px) {
-    padding: 24px 20px;
+    padding: 22px 18px;
     border-radius: 20px;
   }
 `;
@@ -344,19 +212,18 @@ const ModalHeader = styled.header`
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 24px;
 `;
 
 const ModalTitle = styled.h2`
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
 `;
 
 const ModalSubtitle = styled.p`
   margin: 6px 0 0;
-  color: #64748b;
-  font-size: 15px;
+  color: ${({ theme }) => theme.colors.secondaryText};
+  font-size: 14px;
 `;
 
 const CloseButton = styled.button`
@@ -366,167 +233,96 @@ const CloseButton = styled.button`
   border-radius: 999px;
   width: 36px;
   height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
   font-size: 18px;
-  transition: background 0.2s ease;
-
-  &:hover {
-    background: rgba(100, 116, 139, 0.22);
-  }
+  flex-shrink: 0;
 `;
 
-const ModalBody = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-`;
-
-const StateMessage = styled.div`
-  text-align: center;
-  padding: 60px 0;
-  color: ${({ error }) => (error ? "#ef4444" : "#475569")};
-  font-weight: 500;
-`;
-
-const HeroSection = styled.section`
+const Hero = styled.section`
   display: flex;
   gap: 24px;
   align-items: flex-start;
 
-  @media (max-width: 768px) {
+  @media (max-width: 720px) {
     flex-direction: column;
   }
 `;
 
-const ModalPoster = styled.img`
-  width: 180px;
-  border-radius: 18px;
-  box-shadow: 0 18px 28px rgba(15, 23, 42, 0.22);
+const Poster = styled.img`
+  width: 170px;
+  border-radius: 16px;
+  box-shadow: 0 18px 28px rgba(15, 23, 42, 0.2);
   flex-shrink: 0;
 
-  @media (max-width: 768px) {
-    width: 100%;
-    max-width: 280px;
+  @media (max-width: 720px) {
+    width: 140px;
     align-self: center;
   }
 `;
 
-const PosterPlaceholder = styled.div`
-  width: 180px;
-  height: 270px;
-  border-radius: 18px;
+const PosterFallback = styled.div`
+  width: 170px;
+  height: 250px;
+  border-radius: 16px;
   background: rgba(226, 232, 240, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: ${({ theme }) => theme.colors.secondaryText};
   font-weight: 600;
+  flex-shrink: 0;
 `;
 
 const HeroInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
   flex: 1;
-`;
-
-const InfoList = styled.dl`
-  margin: 0;
-  display: grid;
-  grid-template-columns: minmax(100px, 140px) 1fr;
-  gap: 10px 16px;
-`;
-
-const InfoRow = styled.div`
-  display: contents;
-`;
-
-const InfoKey = styled.dt`
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-`;
-
-const InfoValue = styled.dd`
-  margin: 0;
-  font-size: 15px;
-  color: #1f2937;
-  font-weight: 500;
-`;
-
-const RatingSection = styled.form`
-  background: rgba(37, 99, 235, 0.06);
-  border-radius: 18px;
-  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 `;
 
-const RatingHeader = styled.h3`
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-`;
-
-const RatingControl = styled.div`
+const AverageBlock = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 `;
 
-const RatingLabel = styled.span`
+const AverageText = styled.span`
   font-size: 18px;
   font-weight: 700;
 `;
 
-const RatingRange = styled.input`
-  flex: 1;
-  accent-color: #2563eb;
+const Count = styled.span`
+  font-size: 14px;
+  font-weight: 400;
+  color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const RatingButton = styled.button`
-  border: none;
-  border-radius: 12px;
-  background: #2563eb;
-  color: #fff;
-  padding: 12px 16px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover:not(:disabled) {
-    background: #1d4ed8;
-  }
-
-  &:disabled {
-    background: rgba(37, 99, 235, 0.5);
-    cursor: not-allowed;
-  }
-`;
-
-const HintText = styled.p`
-  margin: 0;
-  font-size: 13px;
-  color: ${({ tone }) =>
-    tone === "success"
-      ? "#0ea5e9"
-      : tone === "error"
-        ? "#ef4444"
-        : "#64748b"};
-`;
-
-const OverviewSection = styled.section`
+const RateBox = styled.div`
+  background: rgba(0, 104, 255, 0.05);
+  border-radius: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+`;
+
+const RateTitle = styled.h3`
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+`;
+
+const RateHint = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.secondaryText};
+`;
+
+const Section = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 `;
 
 const SectionTitle = styled.h3`
@@ -535,53 +331,45 @@ const SectionTitle = styled.h3`
   font-weight: 700;
 `;
 
-const OverviewText = styled.p`
+const Overview = styled.p`
   margin: 0;
   font-size: 15px;
   line-height: 1.6;
   color: #334155;
 `;
 
-const ReviewSection = styled.section`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-const EmptyReview = styled.div`
-  padding: 24px;
+const Empty = styled.div`
+  padding: 22px;
   border-radius: 14px;
   background: rgba(226, 232, 240, 0.4);
   text-align: center;
-  color: #64748b;
+  color: ${({ theme }) => theme.colors.secondaryText};
   font-weight: 500;
 `;
 
 const ReviewList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 `;
 
 const ReviewItem = styled.article`
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: #ffffff;
+  gap: 6px;
 `;
 
-const ReviewHeader = styled.header`
+const ReviewHead = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
 `;
 
-const ReviewerName = styled.span`
+const Reviewer = styled.span`
   font-weight: 700;
-  color: #1f2937;
 `;
 
 const ReviewDate = styled.time`
@@ -589,7 +377,7 @@ const ReviewDate = styled.time`
   font-size: 13px;
 `;
 
-const ReviewContent = styled.p`
+const ReviewBody = styled.p`
   margin: 0;
   font-size: 14px;
   color: #334155;
@@ -597,4 +385,3 @@ const ReviewContent = styled.p`
 `;
 
 export default MovieModal;
-

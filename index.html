@@ -1,13 +1,62 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>toss-moviehop-demo</title>
+    <title>MovieHop - 영화 평점</title>
+    <meta
+      name="description"
+      content="영화를 진짜 본 사람만 별점을 남깁니다. 작품 퀴즈를 맞혀야 평점을 매길 수 있는 영화 평점 서비스."
+    />
+
+    <!-- 파비콘 / 아이콘 -->
+    <link rel="icon" type="image/png" sizes="32x32" href="https://assets.movie-hop.com/logo/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="https://assets.movie-hop.com/logo/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://assets.movie-hop.com/logo/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0068ff" />
+
+    <!-- iOS 홈 화면 추가 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MovieHop" />
+
+    <!-- 링크 공유 미리보기 (Open Graph) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="MovieHop" />
+    <meta property="og:title" content="MovieHop · 영화 평점" />
+    <meta
+      property="og:description"
+      content="영화를 진짜 본 사람만 별점을 남깁니다. 작품 퀴즈를 맞혀야 평점을 매길 수 있는 영화 평점 서비스."
+    />
+    <meta
+      property="og:image"
+      content="https://assets.movie-hop.com/logo/icon-512.png"
+    />
+    <meta property="og:url" content="https://movie-hop.com" />
+
+    <!-- 트위터 카드 -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="MovieHop · 영화 평점" />
+    <meta
+      name="twitter:description"
+      content="영화를 진짜 본 사람만 별점을 남깁니다. 작품 퀴즈를 맞혀야 평점을 매길 수 있는 영화 평점 서비스."
+    />
+    <meta
+      name="twitter:image"
+      content="https://assets.movie-hop.com/logo/icon-512.png"
+    />
+
+    <!-- 네이버 로그인 (implicit SDK) -->
+    <script
+      type="text/javascript"
+      src="https://static.nid.naver.com/js/naverLogin_implicit-1.0.3.js"
+      charset="utf-8"
+    ></script>
   </head>
   <body>
     <div id="root"></div>
+    <div id="modal-root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
