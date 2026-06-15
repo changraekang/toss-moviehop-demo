@@ -8,20 +8,32 @@ const modalRoot =
     ? document.getElementById("modal-root") ?? document.body
     : null;
 
-// 별점을 매기기 전에 풀어야 하는 영화 문제 (다크 / 모바일 바텀시트)
+const PENALTY_MS = 3 * 60 * 1000; // 오답 시 3분 잠금 (클라이언트 처리)
+const lockKey = (movieId) => `moviehop_quizlock_${movieId}`;
+
+function readLock(movieId) {
+  try {
+    const v = Number(localStorage.getItem(lockKey(movieId)));
+    return v && v > Date.now() ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+// 영화 문제. 보기를 고르면 바로 O/X 채점 후 자동으로 닫힌다.
+// 정답은 노출하지 않고, 틀리면 3분 동안 다시 풀 수 없다(클라이언트).
 function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(null); // { isCorrect }
+  const [lockUntil, setLockUntil] = useState(() => readLock(movieId));
+  const [remaining, setRemaining] = useState(0);
 
   const loadQuiz = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setResult(null);
-    setSelected(null);
     try {
       const data = await fetchQuiz(movieId);
       setQuiz(data);
@@ -47,21 +59,61 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
     };
   }, [onClose]);
 
-  const handleSubmit = async () => {
-    if (selected == null || submitting) return;
-    setSubmitting(true);
+  // 잠금 카운트다운 (다시 열었을 때)
+  useEffect(() => {
+    if (!lockUntil) {
+      setRemaining(0);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(0, lockUntil - Date.now());
+      setRemaining(left);
+      if (left <= 0) {
+        setLockUntil(0);
+        try {
+          localStorage.removeItem(lockKey(movieId));
+        } catch {
+          /* noop */
+        }
+        setResult(null);
+        setSelected(null);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [lockUntil, movieId]);
+
+  const locked = remaining > 0;
+
+  const handlePick = async (index) => {
+    if (locked || result || selected != null) return;
+    setSelected(index);
     try {
       const res = await checkQuiz(
-        { quizId: quiz.quizId, movieId, userAnswer: quiz.options[selected] },
+        { quizId: quiz.quizId, movieId, userAnswer: quiz.options[index] },
         token
       );
-      setResult(res);
-      if (res.isCorrect) setTimeout(() => onSolved(), 700);
+      setResult({ isCorrect: res.isCorrect });
+      if (res.isCorrect) {
+        setTimeout(() => onSolved(), 900); // 정답 → 별점 잠금 해제 후 닫힘
+      } else {
+        try {
+          localStorage.setItem(lockKey(movieId), String(Date.now() + PENALTY_MS));
+        } catch {
+          /* noop */
+        }
+        setTimeout(() => onClose(), 1100); // 오답 → 바로 닫힘 (3분 잠금 저장)
+      }
     } catch (err) {
-      setError(err.message ?? "정답 확인에 실패했습니다.");
-    } finally {
-      setSubmitting(false);
+      setError(err.message ?? "채점에 실패했습니다.");
+      setSelected(null);
     }
+  };
+
+  const fmt = (ms) => {
+    const s = Math.ceil(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
 
   if (!modalRoot) return null;
@@ -84,25 +136,35 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
         {loading && <State>문제를 불러오는 중입니다…</State>}
         {error && !loading && <State $error>{error}</State>}
 
-        {!loading && !error && quiz && (
+        {!loading && !error && quiz && locked && (
+          <LockBox>
+            <LockMark>✕</LockMark>
+            <LockText>틀렸어요. 잠시 후 다시 도전할 수 있어요.</LockText>
+            <LockTimer>{fmt(remaining)}</LockTimer>
+          </LockBox>
+        )}
+
+        {!loading && !error && quiz && !locked && (
           <>
             <Question>{quiz.question}</Question>
             <Options>
               {quiz.options.map((option, index) => {
                 const isPicked = selected === index;
-                const isAnswer = result && result.correctAnswer === option;
-                const isWrongPick = result && isPicked && !result.isCorrect;
+                const ok = result?.isCorrect;
                 return (
                   <OptionButton
                     key={index}
                     type="button"
                     $picked={isPicked}
-                    $correct={isAnswer}
-                    $wrong={isWrongPick}
-                    disabled={Boolean(result?.isCorrect) || submitting}
-                    onClick={() => setSelected(index)}
+                    $correct={isPicked && result && ok}
+                    $wrong={isPicked && result && !ok}
+                    disabled={selected != null}
+                    onClick={() => handlePick(index)}
                   >
                     {option}
+                    {isPicked && result && (
+                      <PickMark $ok={ok}>{ok ? "O" : "X"}</PickMark>
+                    )}
                   </OptionButton>
                 );
               })}
@@ -110,27 +172,9 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
 
             {result && (
               <Feedback $ok={result.isCorrect}>
-                {result.isCorrect
-                  ? "정답입니다! 별점을 등록할게요."
-                  : "오답입니다. 다시 시도해 주세요."}
+                {result.isCorrect ? "정답입니다! 별점을 등록할게요." : "오답입니다."}
               </Feedback>
             )}
-
-            <Actions>
-              {result && !result.isCorrect ? (
-                <PrimaryButton type="button" onClick={loadQuiz}>
-                  다른 문제 풀기
-                </PrimaryButton>
-              ) : (
-                <PrimaryButton
-                  type="button"
-                  disabled={selected == null || submitting || result?.isCorrect}
-                  onClick={handleSubmit}
-                >
-                  {submitting ? "확인 중…" : "정답 확인"}
-                </PrimaryButton>
-              )}
-            </Actions>
           </>
         )}
       </Sheet>
@@ -144,7 +188,7 @@ const slideUp = keyframes`
   to { transform: translateY(0); opacity: 1; }
 `;
 
-const Overlay = styled.div`
+const Overlay = styled.div.attrs({ className: "Overlay" })`
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
@@ -160,7 +204,7 @@ const Overlay = styled.div`
   }
 `;
 
-const Sheet = styled.div`
+const Sheet = styled.div.attrs({ className: "Sheet" })`
   width: 100%;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -178,7 +222,7 @@ const Sheet = styled.div`
   }
 `;
 
-const Grabber = styled.div`
+const Grabber = styled.div.attrs({ className: "Grabber" })`
   width: 40px;
   height: 4px;
   border-radius: 999px;
@@ -189,16 +233,16 @@ const Grabber = styled.div`
   }
 `;
 
-const Header = styled.header`
+const Header = styled.header.attrs({ className: "Header" })`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
 `;
 
-const Badge = styled.span`
+const Badge = styled.span.attrs({ className: "Badge" })`
   display: inline-block;
-  background: rgba(79, 140, 255, 0.16);
+  background: rgba(107, 74, 38, 0.12);
   color: ${({ theme }) => theme.colors.primary};
   font-size: 11px;
   font-weight: 800;
@@ -208,20 +252,20 @@ const Badge = styled.span`
   margin-bottom: 8px;
 `;
 
-const Title = styled.h2`
+const Title = styled.h2.attrs({ className: "Title" })`
   margin: 0;
   font-size: 19px;
   font-weight: 800;
   line-height: 1.3;
 `;
 
-const Subtitle = styled.p`
+const Subtitle = styled.p.attrs({ className: "Subtitle" })`
   margin: 6px 0 0;
   font-size: 13px;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const CloseButton = styled.button`
+const CloseButton = styled.button.attrs({ className: "CloseButton" })`
   border: none;
   background: ${({ theme }) => theme.colors.surfaceAlt};
   color: ${({ theme }) => theme.colors.text};
@@ -233,7 +277,7 @@ const CloseButton = styled.button`
   flex-shrink: 0;
 `;
 
-const State = styled.div`
+const State = styled.div.attrs({ className: "State" })`
   text-align: center;
   padding: 28px 0;
   font-weight: 500;
@@ -241,20 +285,21 @@ const State = styled.div`
     $error ? theme.colors.error : theme.colors.secondaryText};
 `;
 
-const Question = styled.p`
+const Question = styled.p.attrs({ className: "Question" })`
   margin: 0;
   font-size: 17px;
   font-weight: 700;
   line-height: 1.5;
 `;
 
-const Options = styled.div`
+const Options = styled.div.attrs({ className: "Options" })`
   display: flex;
   flex-direction: column;
   gap: 10px;
 `;
 
-const OptionButton = styled.button`
+const OptionButton = styled.button.attrs({ className: "OptionButton" })`
+  position: relative;
   text-align: left;
   border-radius: 12px;
   padding: 15px 16px;
@@ -272,13 +317,13 @@ const OptionButton = styled.button`
         : $picked
         ? theme.colors.primary
         : theme.colors.border};
-  background: ${({ $picked, $correct, $wrong, theme }) =>
+  background: ${({ $correct, $wrong, $picked, theme }) =>
     $correct
-      ? "rgba(45,212,191,0.12)"
+      ? "rgba(46,158,115,0.12)"
       : $wrong
-      ? "rgba(255,90,106,0.12)"
+      ? "rgba(192,57,43,0.12)"
       : $picked
-      ? "rgba(79,140,255,0.12)"
+      ? "rgba(107,74,38,0.10)"
       : theme.colors.surfaceAlt};
 
   &:disabled {
@@ -286,34 +331,53 @@ const OptionButton = styled.button`
   }
 `;
 
-const Feedback = styled.div`
+const PickMark = styled.span.attrs({ className: "PickMark" })`
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  font-size: 22px;
+  font-weight: 800;
+  color: ${({ $ok, theme }) => ($ok ? theme.colors.success : theme.colors.error)};
+`;
+
+const Feedback = styled.div.attrs({ className: "Feedback" })`
   text-align: center;
   font-weight: 700;
   font-size: 14px;
   color: ${({ $ok, theme }) => ($ok ? theme.colors.success : theme.colors.error)};
 `;
 
-const Actions = styled.div`
+const LockBox = styled.div.attrs({ className: "LockBox" })`
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 14px;
+  border-radius: 14px;
+  background: rgba(192, 57, 43, 0.08);
+  border: 1px solid rgba(192, 57, 43, 0.18);
 `;
 
-const PrimaryButton = styled.button`
-  flex: 1;
-  border: none;
-  border-radius: 12px;
-  background: ${({ theme }) => theme.colors.primary};
-  color: #fff;
-  padding: 15px 20px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  min-height: 50px;
+const LockMark = styled.span.attrs({ className: "LockMark" })`
+  font-size: 34px;
+  font-weight: 800;
+  color: ${({ theme }) => theme.colors.error};
+  line-height: 1;
+`;
 
-  &:disabled {
-    background: ${({ theme }) => theme.colors.surfaceAlt};
-    color: ${({ theme }) => theme.colors.secondaryText};
-    cursor: not-allowed;
-  }
+const LockText = styled.span.attrs({ className: "LockText" })`
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.error};
+`;
+
+const LockTimer = styled.span.attrs({ className: "LockTimer" })`
+  font-size: 32px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: ${({ theme }) => theme.colors.error};
+  line-height: 1.1;
 `;
 
 export default QuizModal;

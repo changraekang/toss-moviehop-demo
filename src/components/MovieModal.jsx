@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import styled, { keyframes } from "styled-components";
 import StarRating from "./StarRating.jsx";
+import StarSlider from "./StarSlider.jsx";
 import { fetchMovieReviews, fetchMovieRating } from "../api.js";
 
 const modalRoot =
@@ -91,7 +92,12 @@ function MovieModal({
             <Title>{movie.title}</Title>
             <Sub>
               {formatYear(movie.releaseDate)}
-              {movie.genres?.length ? ` · ${movie.genres.join(", ")}` : ""}
+              {movie.genres?.length
+                ? ` · ${movie.genres
+                    .map((g) => (typeof g === "string" ? g : g?.name))
+                    .filter(Boolean)
+                    .join(", ")}`
+                : ""}
               {movie.runtime ? ` · ${movie.runtime}분` : ""}
             </Sub>
             <AverageRow>
@@ -108,11 +114,11 @@ function MovieModal({
           <RateBox>
             <RateTitle>내 평점</RateTitle>
             <StarWrap>
-              <StarRating
+              <StarSlider
                 value={myRating ?? 0}
-                onRate={(v) => onRateAttempt(v)}
+                onCommit={(v) => onRateAttempt(v)}
                 disabled={ratingPending || !quizCompleted}
-                size={36}
+                size={38}
               />
               {!quizCompleted && (
                 <QuizLock type="button" onClick={onStartQuiz} aria-label="문제 풀기">
@@ -126,8 +132,8 @@ function MovieModal({
                 : !quizCompleted
                 ? "별점을 주려면 먼저 문제를 맞혀야 해요. ? 를 눌러보세요."
                 : myRating != null
-                ? `${formatAverage(myRating)}점을 주셨어요. 별을 눌러 수정할 수 있어요.`
-                : "별을 눌러 평점을 남겨보세요."}
+                ? `${formatAverage(myRating)}점을 주셨어요. 별 위를 드래그해 수정할 수 있어요.`
+                : "별 위를 좌우로 드래그해 0.1점 단위로 평가해요."}
             </RateHint>
           </RateBox>
 
@@ -185,7 +191,7 @@ const slideUp = keyframes`
   to { transform: translateY(0); opacity: 1; }
 `;
 
-const Overlay = styled.div`
+const Overlay = styled.div.attrs({ className: "Overlay" })`
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.66);
@@ -201,7 +207,7 @@ const Overlay = styled.div`
   }
 `;
 
-const Sheet = styled.div`
+const Sheet = styled.div.attrs({ className: "Sheet" })`
   position: relative;
   width: 100%;
   background: ${({ theme }) => theme.colors.surface};
@@ -221,7 +227,7 @@ const Sheet = styled.div`
   }
 `;
 
-const Grabber = styled.div`
+const Grabber = styled.div.attrs({ className: "Grabber" })`
   width: 40px;
   height: 4px;
   border-radius: 999px;
@@ -233,7 +239,7 @@ const Grabber = styled.div`
   }
 `;
 
-const CloseButton = styled.button`
+const CloseButton = styled.button.attrs({ className: "CloseButton" })`
   position: absolute;
   top: 12px;
   right: 14px;
@@ -248,13 +254,13 @@ const CloseButton = styled.button`
   z-index: 2;
 `;
 
-const Hero = styled.section`
+const Hero = styled.section.attrs({ className: "Hero" })`
   display: flex;
   gap: 16px;
   align-items: flex-start;
 `;
 
-const Poster = styled.img`
+const Poster = styled.img.attrs({ className: "Poster" })`
   width: 104px;
   border-radius: 12px;
   flex-shrink: 0;
@@ -265,7 +271,7 @@ const Poster = styled.img`
   }
 `;
 
-const PosterFallback = styled.div`
+const PosterFallback = styled.div.attrs({ className: "PosterFallback" })`
   width: 104px;
   aspect-ratio: 2 / 3;
   border-radius: 12px;
@@ -283,7 +289,7 @@ const PosterFallback = styled.div`
   }
 `;
 
-const HeroInfo = styled.div`
+const HeroInfo = styled.div.attrs({ className: "HeroInfo" })`
   flex: 1;
   min-width: 0;
   display: flex;
@@ -292,7 +298,7 @@ const HeroInfo = styled.div`
   padding-right: 28px;
 `;
 
-const Title = styled.h2`
+const Title = styled.h2.attrs({ className: "Title" })`
   margin: 0;
   font-size: 21px;
   font-weight: 800;
@@ -303,13 +309,13 @@ const Title = styled.h2`
   }
 `;
 
-const Sub = styled.p`
+const Sub = styled.p.attrs({ className: "Sub" })`
   margin: 0;
   font-size: 13px;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const AverageRow = styled.div`
+const AverageRow = styled.div.attrs({ className: "AverageRow" })`
   display: flex;
   align-items: center;
   gap: 10px;
@@ -317,25 +323,25 @@ const AverageRow = styled.div`
   margin-top: 2px;
 `;
 
-const AverageText = styled.span`
+const AverageText = styled.span.attrs({ className: "AverageText" })`
   font-size: 16px;
   font-weight: 800;
 `;
 
-const Count = styled.span`
+const Count = styled.span.attrs({ className: "Count" })`
   font-size: 13px;
   font-weight: 400;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const Body = styled.div`
+const Body = styled.div.attrs({ className: "Body" })`
   display: flex;
   flex-direction: column;
   gap: 22px;
   margin-top: 20px;
 `;
 
-const RateBox = styled.div`
+const RateBox = styled.div.attrs({ className: "RateBox" })`
   background: ${({ theme }) => theme.colors.surfaceAlt};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 16px;
@@ -345,32 +351,32 @@ const RateBox = styled.div`
   gap: 10px;
 `;
 
-const RateTitle = styled.h3`
+const RateTitle = styled.h3.attrs({ className: "RateTitle" })`
   margin: 0;
   font-size: 14px;
   font-weight: 700;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const RateHint = styled.p`
+const RateHint = styled.p.attrs({ className: "RateHint" })`
   margin: 0;
   font-size: 13px;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const Section = styled.section`
+const Section = styled.section.attrs({ className: "Section" })`
   display: flex;
   flex-direction: column;
   gap: 10px;
 `;
 
-const SectionTitle = styled.h3`
+const SectionTitle = styled.h3.attrs({ className: "SectionTitle" })`
   margin: 0;
   font-size: 16px;
   font-weight: 700;
 `;
 
-const Overview = styled.p`
+const Overview = styled.p.attrs({ className: "Overview" })`
   margin: 0;
   font-size: 14px;
   line-height: 1.65;
@@ -378,7 +384,7 @@ const Overview = styled.p`
   opacity: 0.85;
 `;
 
-const Empty = styled.div`
+const Empty = styled.div.attrs({ className: "Empty" })`
   padding: 20px;
   border-radius: 12px;
   background: ${({ theme }) => theme.colors.surfaceAlt};
@@ -388,13 +394,13 @@ const Empty = styled.div`
   font-size: 14px;
 `;
 
-const ReviewList = styled.div`
+const ReviewList = styled.div.attrs({ className: "ReviewList" })`
   display: flex;
   flex-direction: column;
   gap: 10px;
 `;
 
-const ReviewItem = styled.article`
+const ReviewItem = styled.article.attrs({ className: "ReviewItem" })`
   border-radius: 12px;
   border: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.surfaceAlt};
@@ -404,23 +410,23 @@ const ReviewItem = styled.article`
   gap: 6px;
 `;
 
-const ReviewHead = styled.header`
+const ReviewHead = styled.header.attrs({ className: "ReviewHead" })`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
 `;
 
-const Reviewer = styled.span`
+const Reviewer = styled.span.attrs({ className: "Reviewer" })`
   font-weight: 700;
   font-size: 14px;
 `;
 
-const ReviewDate = styled.time`
+const ReviewDate = styled.time.attrs({ className: "ReviewDate" })`
   color: ${({ theme }) => theme.colors.secondaryText};
   font-size: 12px;
 `;
 
-const ReviewBody = styled.p`
+const ReviewBody = styled.p.attrs({ className: "ReviewBody" })`
   margin: 0;
   font-size: 14px;
   color: ${({ theme }) => theme.colors.text};
@@ -428,13 +434,13 @@ const ReviewBody = styled.p`
   line-height: 1.6;
 `;
 
-const StarWrap = styled.div`
+const StarWrap = styled.div.attrs({ className: "StarWrap" })`
   position: relative;
   display: inline-flex;
   align-self: flex-start;
 `;
 
-const QuizLock = styled.button`
+const QuizLock = styled.button.attrs({ className: "QuizLock" })`
   position: absolute;
   inset: -6px -12px;
   display: flex;

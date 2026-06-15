@@ -56,13 +56,13 @@ function StarRating({
   );
 }
 
-const Row = styled.div`
+const Row = styled.div.attrs({ className: "Row" })`
   display: inline-flex;
   gap: 4px;
   line-height: 1;
 `;
 
-const Star = styled.span`
+const Star = styled.span.attrs({ className: "Star" })`
   position: relative;
   display: inline-block;
   width: ${({ $size }) => $size}px;
@@ -70,11 +70,11 @@ const Star = styled.span`
   font-size: ${({ $size }) => $size}px;
 `;
 
-const StarBase = styled.span`
+const StarBase = styled.span.attrs({ className: "StarBase" })`
   color: #e6d2a8;
 `;
 
-const StarFill = styled.span`
+const StarFill = styled.span.attrs({ className: "StarFill" })`
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -82,7 +82,7 @@ const StarFill = styled.span`
   color: #ffb400;
 `;
 
-const HalfHit = styled.button`
+const HalfHit = styled.button.attrs({ className: "HalfHit" })`
   position: absolute;
   top: 0;
   ${({ $left }) => ($left ? "left: 0;" : "right: 0;")}

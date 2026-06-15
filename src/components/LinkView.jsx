@@ -50,7 +50,7 @@ function LinkView({ notice }) {
   );
 }
 
-const Card = styled.section`
+const Card = styled.section.attrs({ className: "Card" })`
   background: ${({ theme }) => theme.colors.surface};
   border-radius: 18px;
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -68,14 +68,14 @@ const Card = styled.section`
   }
 `;
 
-const CardTitle = styled.h2`
+const CardTitle = styled.h2.attrs({ className: "CardTitle" })`
   margin: 0;
   font-size: 22px;
   font-weight: 800;
   text-align: center;
 `;
 
-const Desc = styled.p`
+const Desc = styled.p.attrs({ className: "Desc" })`
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
@@ -83,7 +83,7 @@ const Desc = styled.p`
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const Notice = styled.div`
+const Notice = styled.div.attrs({ className: "Notice" })`
   border-radius: 12px;
   padding: 12px 14px;
   font-size: 14px;
@@ -92,7 +92,7 @@ const Notice = styled.div`
   color: ${({ theme }) => theme.colors.primary};
 `;
 
-const NaverButton = styled.button`
+const NaverButton = styled.button.attrs({ className: "NaverButton" })`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -113,7 +113,7 @@ const NaverButton = styled.button`
   }
 `;
 
-const NaverLogo = styled.span`
+const NaverLogo = styled.span.attrs({ className: "NaverLogo" })`
   font-weight: 900;
   font-size: 18px;
 `;

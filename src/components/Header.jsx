@@ -31,7 +31,7 @@ function Header({ user, isLoggedIn, onHome, onLogin, onLogout }) {
   );
 }
 
-const Bar = styled.header`
+const Bar = styled.header.attrs({ className: "Bar" })`
   position: sticky;
   top: 0;
   z-index: 200;
@@ -41,7 +41,7 @@ const Bar = styled.header`
   padding-top: env(safe-area-inset-top);
 `;
 
-const Inner = styled.div`
+const Inner = styled.div.attrs({ className: "Inner" })`
   max-width: 1080px;
   margin: 0 auto;
   height: 56px;
@@ -57,7 +57,7 @@ const Inner = styled.div`
   }
 `;
 
-const Logo = styled.button`
+const Logo = styled.button.attrs({ className: "Logo" })`
   display: flex;
   align-items: center;
   gap: 9px;
@@ -74,20 +74,20 @@ const Logo = styled.button`
   }
 `;
 
-const Wordmark = styled.span`
+const Wordmark = styled.span.attrs({ className: "Wordmark" })`
   font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: ${({ theme }) => theme.colors.text};
 `;
 
-const Right = styled.div`
+const Right = styled.div.attrs({ className: "Right" })`
   display: flex;
   align-items: center;
   gap: 10px;
 `;
 
-const UserName = styled.span`
+const UserName = styled.span.attrs({ className: "UserName" })`
   font-size: 13px;
   font-weight: 600;
   color: ${({ theme }) => theme.colors.secondaryText};
@@ -101,7 +101,7 @@ const UserName = styled.span`
   }
 `;
 
-const PrimaryButton = styled.button`
+const PrimaryButton = styled.button.attrs({ className: "PrimaryButton" })`
   border: none;
   border-radius: 999px;
   background: ${({ theme }) => theme.colors.primary};
@@ -117,7 +117,7 @@ const PrimaryButton = styled.button`
   }
 `;
 
-const GhostButton = styled.button`
+const GhostButton = styled.button.attrs({ className: "GhostButton" })`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 999px;
   background: ${({ theme }) => theme.colors.surfaceAlt};

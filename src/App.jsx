@@ -6,6 +6,7 @@ import LinkView from "./components/LinkView.jsx";
 import MovieModal from "./components/MovieModal.jsx";
 import QuizModal from "./components/QuizModal.jsx";
 import StarRating from "./components/StarRating.jsx";
+import StarSlider, { scoreColor } from "./components/StarSlider.jsx";
 import { useAuth } from "./useAuth.js";
 import {
   fetchMovies,
@@ -124,9 +125,15 @@ function App() {
         const params = { page: pageToLoad, limit: PAGE_SIZE };
         if (homeTab === "new") params.recentDays = RECENT_DAYS; // 신작 탭
         else params.onlyWithQuiz = true; // 영화 목록 탭
+        if (user?.id) params.userId = user.id; // 각 영화 문제 완료여부(hasCompleted)
         const data = await fetchMovies(params);
         const list = Array.isArray(data?.movies) ? data.movies : [];
         setMovies((prev) => (replace ? list : [...prev, ...list]));
+        setCompletions((prev) => {
+          const next = replace ? {} : { ...prev };
+          for (const m of list) if (m.hasCompleted) next[m._id] = true;
+          return next;
+        });
         setHasMore(Boolean(data?.hasMore));
         setTotal(data?.total ?? list.length);
         setPage(pageToLoad);
@@ -139,7 +146,7 @@ function App() {
         setLoadingMore(false);
       }
     },
-    [isLoggedIn, homeTab]
+    [isLoggedIn, homeTab, user]
   );
 
   // 로그인 상태/탭이 바뀌면 목록 초기화 후 첫 페이지
@@ -441,14 +448,28 @@ function App() {
                           </CardMeta>
                         </Info>
                         <RateRow>
-                          <StarRating
+                          <StarSlider
                             value={userRatings[movie._id] ?? 0}
-                            onRate={(v) => handleRateAttempt(movie._id, v)}
+                            onCommit={(v) => handleRateAttempt(movie._id, v)}
                             disabled={ratingPendingId === movie._id}
-                            size={22}
+                            locked={!completions[movie._id]}
+                            onUnlock={() =>
+                              setQuizState({
+                                movieId: movie._id,
+                                pendingRating: null,
+                              })
+                            }
+                            hideScore
+                            size={34}
                           />
                         </RateRow>
                       </CardBody>
+                      <ScoreBadge
+                        $val={userRatings[movie._id] ?? 0}
+                        $locked={!completions[movie._id]}
+                      >
+                        {(userRatings[movie._id] ?? 0).toFixed(1)}
+                      </ScoreBadge>
                     </Card>
                   ))}
                 </Grid>
@@ -504,7 +525,7 @@ function formatAverage(value) {
   return value.toFixed(1);
 }
 
-const Shell = styled.div`
+const Shell = styled.div.attrs({ className: "Shell" })`
   max-width: 1080px;
   margin: 0 auto;
   padding: 20px 16px calc(40px + env(safe-area-inset-bottom));
@@ -517,7 +538,7 @@ const Shell = styled.div`
   }
 `;
 
-const Toast = styled.div`
+const Toast = styled.div.attrs({ className: "Toast" })`
   position: fixed;
   top: calc(16px + env(safe-area-inset-top));
   left: 50%;
@@ -534,7 +555,7 @@ const Toast = styled.div`
   max-width: calc(100vw - 32px);
 `;
 
-const GuestArea = styled.div`
+const GuestArea = styled.div.attrs({ className: "GuestArea" })`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -548,7 +569,7 @@ const GuestArea = styled.div`
   }
 `;
 
-const GuestHero = styled.section`
+const GuestHero = styled.section.attrs({ className: "GuestHero" })`
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -556,14 +577,14 @@ const GuestHero = styled.section`
   max-width: 460px;
 `;
 
-const HeroEyebrow = styled.span`
+const HeroEyebrow = styled.span.attrs({ className: "HeroEyebrow" })`
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: ${({ theme }) => theme.colors.primary};
 `;
 
-const HeroTitle = styled.h1`
+const HeroTitle = styled.h1.attrs({ className: "HeroTitle" })`
   margin: 0;
   font-size: 26px;
   font-weight: 800;
@@ -575,20 +596,20 @@ const HeroTitle = styled.h1`
   }
 `;
 
-const HeroSub = styled.p`
+const HeroSub = styled.p.attrs({ className: "HeroSub" })`
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const Main = styled.main`
+const Main = styled.main.attrs({ className: "Main" })`
   display: flex;
   flex-direction: column;
   gap: 16px;
 `;
 
-const Tabs = styled.div`
+const Tabs = styled.div.attrs({ className: "Tabs" })`
   display: flex;
   gap: 8px;
   background: ${({ theme }) => theme.colors.surface};
@@ -598,7 +619,7 @@ const Tabs = styled.div`
   width: fit-content;
 `;
 
-const Tab = styled.button`
+const Tab = styled.button.attrs({ className: "Tab" })`
   border: none;
   border-radius: 999px;
   padding: 9px 20px;
@@ -612,13 +633,13 @@ const Tab = styled.button`
   transition: background 0.15s ease, color 0.15s ease;
 `;
 
-const CountText = styled.div`
+const CountText = styled.div.attrs({ className: "CountText" })`
   font-size: 13px;
   font-weight: 600;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const Placeholder = styled.div`
+const Placeholder = styled.div.attrs({ className: "Placeholder" })`
   padding: 56px 16px;
   text-align: center;
   font-weight: 500;
@@ -626,7 +647,7 @@ const Placeholder = styled.div`
     $error ? theme.colors.error : theme.colors.secondaryText};
 `;
 
-const Grid = styled.div`
+const Grid = styled.div.attrs({ className: "Grid" })`
   display: grid;
   grid-template-columns: 1fr; /* 모바일: 한 줄 리스트 */
   gap: 10px;
@@ -640,14 +661,15 @@ const Grid = styled.div`
   }
 `;
 
-const Card = styled.div`
+const Card = styled.div.attrs({ className: "Card" })`
+  position: relative;
   display: flex;
   gap: 12px;
   align-items: center;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 14px;
-  padding: 10px;
+  padding: 10px 84px 10px 10px;
 
   @media (min-width: 560px) {
     flex-direction: column;
@@ -659,7 +681,37 @@ const Card = styled.div`
   }
 `;
 
-const PosterWrap = styled.div`
+const ScoreBadge = styled.span.attrs({ className: "ScoreBadge" })`
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  height: 52px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: ${({ $val, $locked }) => scoreColor($val, $locked)};
+  color: #fff;
+  font-size: 25px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+
+  @media (min-width: 560px) {
+    top: 10px;
+    right: 10px;
+    transform: none;
+    min-width: 44px;
+    height: 40px;
+    font-size: 19px;
+    border-radius: 10px;
+  }
+`;
+
+const PosterWrap = styled.div.attrs({ className: "PosterWrap" })`
   position: relative;
   border-radius: 12px;
   overflow: hidden;
@@ -669,12 +721,12 @@ const PosterWrap = styled.div`
   transition: box-shadow 0.18s ease;
 `;
 
-const PosterArea = styled.button`
+const PosterArea = styled.button.attrs({ className: "PosterArea" })`
   border: none;
   background: transparent;
   padding: 0;
   cursor: pointer;
-  width: 66px;
+  width: 96px;
   flex-shrink: 0;
 
   @media (min-width: 560px) {
@@ -687,13 +739,13 @@ const PosterArea = styled.button`
   }
 `;
 
-const Poster = styled.img`
+const Poster = styled.img.attrs({ className: "Poster" })`
   width: 100%;
   height: 100%;
   object-fit: cover;
 `;
 
-const PosterFallback = styled.div`
+const PosterFallback = styled.div.attrs({ className: "PosterFallback" })`
   width: 100%;
   height: 100%;
   display: flex;
@@ -704,7 +756,7 @@ const PosterFallback = styled.div`
   font-size: 12px;
 `;
 
-const CardBody = styled.div`
+const CardBody = styled.div.attrs({ className: "CardBody" })`
   flex: 1;
   min-width: 0;
   display: flex;
@@ -712,7 +764,7 @@ const CardBody = styled.div`
   gap: 8px;
 `;
 
-const Info = styled.button`
+const Info = styled.button.attrs({ className: "Info" })`
   border: none;
   background: transparent;
   padding: 0;
@@ -720,12 +772,12 @@ const Info = styled.button`
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 `;
 
-const CardTitle = styled.h2`
+const CardTitle = styled.h2.attrs({ className: "CardTitle" })`
   margin: 0;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1.3;
   color: ${({ theme }) => theme.colors.text};
@@ -740,21 +792,22 @@ const CardTitle = styled.h2`
   }
 `;
 
-const CardMeta = styled.span`
-  font-size: 12px;
+const CardMeta = styled.span.attrs({ className: "CardMeta" })`
+  font-size: 16.5px;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
-const RateRow = styled.div`
+const RateRow = styled.div.attrs({ className: "RateRow" })`
   display: flex;
   align-items: center;
 `;
 
-const Sentinel = styled.div`
+
+const Sentinel = styled.div.attrs({ className: "Sentinel" })`
   height: 1px;
 `;
 
-const LoadMore = styled.div`
+const LoadMore = styled.div.attrs({ className: "LoadMore" })`
   text-align: center;
   padding: 18px;
   font-size: 13px;
