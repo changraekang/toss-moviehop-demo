@@ -34,10 +34,11 @@ export const naverLogin = ({ accessToken, tokenType, state, type }) =>
   });
 
 // --- 영화 ---
-export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays } = {}) =>
+export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, onlyWithQuiz = false } = {}) =>
   request(
     `/movies?page=${page}&limit=${limit}&rated=${rated}` +
-      (recentDays ? `&recentDays=${recentDays}` : "")
+      (recentDays ? `&recentDays=${recentDays}` : "") +
+      (onlyWithQuiz ? "&onlyWithQuiz=true" : "")
   );
 
 // --- 평점 ---

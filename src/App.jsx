@@ -23,7 +23,7 @@ import {
 } from "./naver.js";
 
 const PAGE_SIZE = 24;
-const RECENT_DAYS = 30; // 상영일 기준 1개월 이내 신작만
+const RECENT_DAYS = 30; // 신작 탭: 최근 N일 개봉
 
 const theme = {
   colors: {
@@ -65,38 +65,36 @@ function App() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true); // 첫 페이지
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
 
   const [view, setView] = useState("home"); // "home" | "auth" | "link"
+  const [homeTab, setHomeTab] = useState("movies"); // "movies" | "new"
   const [authMode, setAuthMode] = useState("login");
   const [authNotice, setAuthNotice] = useState(null);
   const [linkNotice, setLinkNotice] = useState(null);
 
   const [selectedMovieId, setSelectedMovieId] = useState(null);
-  const [userRatings, setUserRatings] = useState({}); // { movieId: rating }
+  const [userRatings, setUserRatings] = useState({});
   const [ratingPendingId, setRatingPendingId] = useState(null);
-  const [quizState, setQuizState] = useState(null); // { movieId, pendingRating }
+  const [quizState, setQuizState] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // 비로그인 = 다른 유저가 별점 매긴 영화만, 로그인 = 전체
-  const ratedOnly = !isLoggedIn;
   const loadingRef = useRef(false);
 
   const loadPage = useCallback(
     async (pageToLoad, replace) => {
+      if (!isLoggedIn) return; // 비로그인은 목록을 불러오지 않음(로그인 게이트)
       if (loadingRef.current) return;
       loadingRef.current = true;
       if (replace) setLoading(true);
       else setLoadingMore(true);
       try {
-        const data = await fetchMovies({
-          page: pageToLoad,
-          limit: PAGE_SIZE,
-          rated: ratedOnly,
-          recentDays: RECENT_DAYS,
-        });
+        const params = { page: pageToLoad, limit: PAGE_SIZE };
+        if (homeTab === "new") params.recentDays = RECENT_DAYS; // 신작 탭
+        else params.onlyWithQuiz = true; // 퀴즈 영화 탭
+        const data = await fetchMovies(params);
         const list = Array.isArray(data?.movies) ? data.movies : [];
         setMovies((prev) => (replace ? list : [...prev, ...list]));
         setHasMore(Boolean(data?.hasMore));
@@ -111,21 +109,22 @@ function App() {
         setLoadingMore(false);
       }
     },
-    [ratedOnly]
+    [isLoggedIn, homeTab]
   );
 
-  // 로그인 상태(필터)가 바뀌면 목록 초기화 후 첫 페이지 로드
+  // 로그인 상태/탭이 바뀌면 목록 초기화 후 첫 페이지
   useEffect(() => {
     setMovies([]);
     setHasMore(true);
     setPage(0);
-    loadPage(0, true);
-  }, [loadPage]);
+    if (isLoggedIn) loadPage(0, true);
+    else setLoading(false);
+  }, [loadPage, isLoggedIn]);
 
-  // 무한 스크롤: 바닥 센티넬이 보이면 다음 페이지
+  // 무한 스크롤
   const sentinelRef = useRef(null);
   useEffect(() => {
-    if (loading || !hasMore) return;
+    if (!isLoggedIn || loading || !hasMore) return;
     const el = sentinelRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
@@ -138,37 +137,35 @@ function App() {
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [loading, hasMore, page, loadPage]);
+  }, [isLoggedIn, loading, hasMore, page, loadPage]);
 
-  // 이메일 링크(?link=1)로 진입하면 연동 화면 표시
+  // 이메일 링크(?link=1) 진입 → 연동 화면
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("link") === "1") setView("link");
   }, []);
 
-  // 네이버 콜백 처리 (implicit SDK 가 해시로 access_token 을 돌려줌, 최초 1회)
+  // 네이버 콜백 처리 (해시 access_token, 최초 1회)
   useEffect(() => {
     if (!isNaverCallbackPath()) return;
     const cb = readNaverCallback();
     if (!cb) return;
-
     const cleanUrl = () =>
       window.history.replaceState({}, document.title, "/");
 
     (async () => {
       if (cb.error) {
         setAuthNotice(`네이버 로그인 실패: ${cb.errorDescription || cb.error}`);
-        setView("auth");
+        setView("home");
         cleanUrl();
         return;
       }
       if (!cb.stateValid) {
         setAuthNotice("보안 검증에 실패했습니다. 다시 시도해 주세요.");
-        setView("auth");
+        setView("home");
         cleanUrl();
         return;
       }
-
       const linkCode = popPendingLinkCode();
       try {
         if (linkCode) {
@@ -182,7 +179,6 @@ function App() {
           setToast("네이버 계정이 연동되었습니다.");
           return;
         }
-
         const payload = await naverLogin({
           accessToken: cb.accessToken,
           tokenType: cb.tokenType,
@@ -190,7 +186,7 @@ function App() {
         });
         if (payload.errorCode === 1001) {
           setAuthNotice("회원가입이 필요합니다.");
-          setView("auth");
+          setView("home");
           return;
         }
         signIn(payload.token, payload.user);
@@ -202,7 +198,7 @@ function App() {
           setView("link");
         } else {
           setAuthNotice(`네이버 로그인 실패: ${err.message}`);
-          setView("auth");
+          setView("home");
         }
       } finally {
         cleanUrl();
@@ -211,7 +207,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 모달을 연 영화 1개만 내 평점 조회 (대량 요청 방지)
+  // 모달 연 영화 1개만 내 평점 조회
   useEffect(() => {
     if (!token || !selectedMovieId) return;
     let ignore = false;
@@ -245,12 +241,6 @@ function App() {
     [movies, selectedMovieId]
   );
 
-  const goAuth = (mode = "login", notice = null) => {
-    setAuthMode(mode);
-    setAuthNotice(notice);
-    setView("auth");
-  };
-
   const handleAuthenticated = (nextToken, nextUser) => {
     signIn(nextToken, nextUser);
     setAuthNotice(null);
@@ -261,6 +251,7 @@ function App() {
   const handleLogout = () => {
     signOut();
     setUserRatings({});
+    setMovies([]);
     setToast("로그아웃되었습니다.");
   };
 
@@ -298,7 +289,6 @@ function App() {
     async (movieId, value) => {
       if (!isLoggedIn) {
         setSelectedMovieId(null);
-        goAuth("login", "별점을 매기려면 로그인이 필요합니다.");
         return;
       }
       setRatingPendingId(movieId);
@@ -321,9 +311,7 @@ function App() {
   const handleQuizSolved = async () => {
     const pending = quizState;
     setQuizState(null);
-    if (pending) {
-      await doSubmitRating(pending.movieId, pending.pendingRating);
-    }
+    if (pending) await doSubmitRating(pending.movieId, pending.pendingRating);
   };
 
   return (
@@ -333,45 +321,67 @@ function App() {
         user={user}
         isLoggedIn={isLoggedIn}
         onHome={() => setView("home")}
-        onLogin={() => goAuth("login")}
+        onLogin={() => setView("home")}
         onLogout={handleLogout}
       />
 
       <Shell>
         {toast && <Toast>{toast}</Toast>}
 
-        {view === "auth" && (
-          <AuthView
-            mode={authMode}
-            onModeChange={setAuthMode}
-            onAuthenticated={handleAuthenticated}
-            notice={authNotice}
-          />
-        )}
-
         {view === "link" && <LinkView notice={linkNotice} />}
 
-        {view === "home" && (
-          <Main>
-            <Hero>
+        {view === "home" && !isLoggedIn && (
+          <GuestArea>
+            <GuestHero>
               <HeroEyebrow>MOVIE QUIZ · 진짜 본 사람만</HeroEyebrow>
               <HeroTitle>진짜 본 사람만 별점을 남깁니다</HeroTitle>
               <HeroSub>
-                {isLoggedIn
-                  ? "별점을 매기려면 그 영화 퀴즈를 맞혀야 해요. (예: 쇼생크 탈출 — 앤디 듀프레인의 원래 직업은?)"
-                  : "영화를 진짜 본 사람만 남긴 별점이에요. 로그인하면 퀴즈를 풀고 직접 평가할 수 있어요."}
+                로그인하고 영화 퀴즈를 맞히면 별점을 남길 수 있어요.
               </HeroSub>
-            </Hero>
+            </GuestHero>
+            <AuthView
+              mode={authMode}
+              onModeChange={setAuthMode}
+              onAuthenticated={handleAuthenticated}
+              notice={authNotice}
+            />
+          </GuestArea>
+        )}
+
+        {view === "home" && isLoggedIn && (
+          <Main>
+            <Tabs role="tablist">
+              <Tab
+                type="button"
+                $active={homeTab === "movies"}
+                onClick={() => setHomeTab("movies")}
+              >
+                퀴즈 영화
+              </Tab>
+              <Tab
+                type="button"
+                $active={homeTab === "new"}
+                onClick={() => setHomeTab("new")}
+              >
+                신작
+              </Tab>
+            </Tabs>
 
             {loading && <Placeholder>영화를 불러오는 중입니다…</Placeholder>}
             {error && !loading && <Placeholder $error>{error}</Placeholder>}
             {!loading && !error && movies.length === 0 && (
-              <Placeholder>표시할 영화가 없습니다.</Placeholder>
+              <Placeholder>
+                {homeTab === "new"
+                  ? "최근 개봉작이 아직 없어요."
+                  : "퀴즈가 등록된 영화가 아직 없어요."}
+              </Placeholder>
             )}
 
             {!loading && !error && movies.length > 0 && (
               <>
-                <CountText>최근 개봉작 {total}편</CountText>
+                <CountText>
+                  {homeTab === "new" ? "신작" : "퀴즈 영화"} {total}편
+                </CountText>
                 <Grid>
                   {movies.map((movie) => (
                     <Card
@@ -447,7 +457,6 @@ function formatYear(value) {
   const y = new Date(value).getFullYear();
   return Number.isNaN(y) ? "연도 미상" : `${y}`;
 }
-
 function formatAverage(value) {
   if (typeof value !== "number" || Number.isNaN(value)) return "0.0";
   return value.toFixed(1);
@@ -459,7 +468,7 @@ const Shell = styled.div`
   padding: 20px 16px calc(40px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
 
   @media (min-width: 768px) {
     padding: 28px 24px 64px;
@@ -483,29 +492,26 @@ const Toast = styled.div`
   max-width: calc(100vw - 32px);
 `;
 
-const Main = styled.main`
+const GuestArea = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  align-items: center;
+  gap: 20px;
+  padding-top: 12px;
+
+  @media (min-width: 768px) {
+    min-height: calc(100dvh - 200px);
+    justify-content: center;
+    padding-top: 0;
+  }
 `;
 
-const Hero = styled.section`
+const GuestHero = styled.section`
+  text-align: center;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 18px 20px;
-  border-radius: 18px;
-  background: radial-gradient(
-      120% 140% at 0% 0%,
-      rgba(79, 140, 255, 0.18),
-      transparent 60%
-    ),
-    ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-
-  @media (min-width: 768px) {
-    padding: 28px 32px;
-  }
+  max-width: 460px;
 `;
 
 const HeroEyebrow = styled.span`
@@ -517,7 +523,7 @@ const HeroEyebrow = styled.span`
 
 const HeroTitle = styled.h1`
   margin: 0;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.25;
@@ -532,10 +538,36 @@ const HeroSub = styled.p`
   font-size: 14px;
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.secondaryText};
+`;
 
-  @media (min-width: 768px) {
-    font-size: 15px;
-  }
+const Main = styled.main`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const Tabs = styled.div`
+  display: flex;
+  gap: 8px;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 999px;
+  padding: 5px;
+  width: fit-content;
+`;
+
+const Tab = styled.button`
+  border: none;
+  border-radius: 999px;
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: ${({ $active, theme }) =>
+    $active ? "#fff" : theme.colors.secondaryText};
+  background: ${({ $active, theme }) =>
+    $active ? theme.colors.primary : "transparent"};
+  transition: background 0.15s ease, color 0.15s ease;
 `;
 
 const CountText = styled.div`
