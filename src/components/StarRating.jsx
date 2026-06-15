@@ -71,7 +71,7 @@ const Star = styled.span`
 `;
 
 const StarBase = styled.span`
-  color: rgba(255, 255, 255, 0.16);
+  color: #e6d2a8;
 `;
 
 const StarFill = styled.span`

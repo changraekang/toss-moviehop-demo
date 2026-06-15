@@ -27,17 +27,17 @@ const RECENT_DAYS = 30; // 신작 탭: 최근 N일 개봉
 
 const theme = {
   colors: {
-    background: "#0a0b0f",
-    surface: "#15171e",
-    surfaceAlt: "#1e212b",
-    primary: "#4f8cff",
-    primaryHover: "#6b9dff",
-    text: "#f3f4f6",
-    secondaryText: "#9aa3b2",
-    border: "#2a2e3a",
-    gold: "#ffc043",
-    success: "#2dd4bf",
-    error: "#ff5a6a",
+    background: "#faf1dc", // 크림 배경
+    surface: "#ffffff", // 카드(흰색)
+    surfaceAlt: "#fbeacb", // 입력/보조 표면(연한 크림)
+    primary: "#6b4a26", // 다크브라운 포인트
+    primaryHover: "#543a1e",
+    text: "#3a2a18", // 본문(짙은 브라운)
+    secondaryText: "#9a7e58", // 보조 텍스트
+    border: "#e6d2a8", // 탄 보더
+    gold: "#c98a2e", // 별점 앰버
+    success: "#2e9e73",
+    error: "#c0392b",
     naver: "#03c75a",
   },
 };
@@ -488,7 +488,7 @@ const Toast = styled.div`
   font-size: 14px;
   font-weight: 500;
   z-index: 3000;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 28px rgba(104, 71, 37, 0.16);
   max-width: calc(100vw - 32px);
 `;
 
@@ -604,7 +604,7 @@ const PosterWrap = styled.div`
   overflow: hidden;
   background: ${({ theme }) => theme.colors.surfaceAlt};
   aspect-ratio: 2 / 3;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 22px rgba(104, 71, 37, 0.16);
 `;
 
 const Card = styled.button`
@@ -623,7 +623,7 @@ const Card = styled.button`
   }
   @media (hover: hover) {
     &:hover ${PosterWrap} {
-      box-shadow: 0 14px 34px rgba(79, 140, 255, 0.25);
+      box-shadow: 0 12px 28px rgba(107, 74, 38, 0.22);
     }
   }
 `;

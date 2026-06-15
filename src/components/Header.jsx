@@ -35,7 +35,7 @@ const Bar = styled.header`
   position: sticky;
   top: 0;
   z-index: 200;
-  background: rgba(10, 11, 15, 0.72);
+  background: rgba(250, 241, 220, 0.82);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   padding-top: env(safe-area-inset-top);
