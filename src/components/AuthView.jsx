@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { login as apiLogin, register as apiRegister } from "../api.js";
 import { initNaverLogin, triggerNaverLogin } from "../naver.js";
 
-// 로그인 / 회원가입 화면 (네이버 로그인 포함)
+// 로그인 / 회원가입 화면 (다크, 네이버 로그인 포함)
 function AuthView({ mode, onModeChange, onAuthenticated, notice }) {
   const isLogin = mode === "login";
 
@@ -17,7 +17,6 @@ function AuthView({ mode, onModeChange, onAuthenticated, notice }) {
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 네이버 implicit SDK 버튼 초기화
   useEffect(() => {
     initNaverLogin(isLogin ? "login" : "signup");
   }, [isLogin]);
@@ -45,10 +44,7 @@ function AuthView({ mode, onModeChange, onAuthenticated, notice }) {
       if (payload.token) {
         onAuthenticated(payload.token, payload.user);
       } else {
-        setFeedback({
-          tone: "success",
-          text: "회원가입 완료! 로그인해 주세요.",
-        });
+        setFeedback({ tone: "success", text: "회원가입 완료! 로그인해 주세요." });
         onModeChange("login");
       }
     } catch (err) {
@@ -64,7 +60,6 @@ function AuthView({ mode, onModeChange, onAuthenticated, notice }) {
 
       {notice && <Notice>{notice}</Notice>}
 
-      {/* SDK 가 이 안에 실제 네이버 로그인 a 태그를 주입함 */}
       <div id="naver_id_login" style={{ display: "none" }} />
       <NaverButton type="button" onClick={triggerNaverLogin}>
         <NaverLogo aria-hidden>N</NaverLogo>
@@ -188,26 +183,26 @@ function AuthView({ mode, onModeChange, onAuthenticated, notice }) {
 
 const Card = styled.section`
   background: ${({ theme }) => theme.colors.surface};
-  border-radius: 20px;
+  border-radius: 18px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: 32px;
+  padding: 28px 22px calc(28px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   max-width: 420px;
   width: 100%;
   align-self: center;
-  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.08);
 
-  @media (max-width: 640px) {
-    padding: 24px 20px;
+  @media (min-width: 768px) {
+    padding: 34px;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
   }
 `;
 
 const CardTitle = styled.h2`
   margin: 0;
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   text-align: center;
 `;
 
@@ -216,7 +211,7 @@ const Notice = styled.div`
   padding: 12px 14px;
   font-size: 14px;
   text-align: center;
-  background: rgba(0, 104, 255, 0.08);
+  background: rgba(79, 140, 255, 0.12);
   color: ${({ theme }) => theme.colors.primary};
 `;
 
@@ -227,15 +222,16 @@ const NaverButton = styled.button`
   gap: 10px;
   border: none;
   border-radius: 12px;
-  background: #03c75a;
+  background: ${({ theme }) => theme.colors.naver};
   color: #fff;
-  padding: 14px;
+  padding: 15px;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
+  min-height: 52px;
 
-  &:hover {
-    background: #02b150;
+  &:active {
+    transform: translateY(1px);
   }
 `;
 
@@ -249,7 +245,7 @@ const Divider = styled.div`
   align-items: center;
   gap: 12px;
   color: ${({ theme }) => theme.colors.secondaryText};
-  font-size: 13px;
+  font-size: 12px;
 
   &::before,
   &::after {
@@ -273,7 +269,7 @@ const Field = styled.div`
 `;
 
 const Label = styled.label`
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
@@ -281,13 +277,18 @@ const Label = styled.label`
 const Input = styled.input`
   border-radius: 12px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: 12px 14px;
-  font-size: 15px;
-  background: ${({ theme }) => theme.colors.background};
+  padding: 14px;
+  font-size: 16px; /* iOS 자동 확대 방지 */
+  color: ${({ theme }) => theme.colors.text};
+  background: ${({ theme }) => theme.colors.surfaceAlt};
 
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.secondaryText};
+    opacity: 0.7;
+  }
   &:focus {
-    outline: 2px solid ${({ theme }) => theme.colors.primary};
-    background: #fff;
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
   }
 `;
 
@@ -296,13 +297,14 @@ const Submit = styled.button`
   border-radius: 12px;
   background: ${({ theme }) => theme.colors.primary};
   color: #fff;
-  padding: 14px;
+  padding: 15px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  min-height: 52px;
 
   &:disabled {
-    background: rgba(0, 104, 255, 0.5);
+    opacity: 0.5;
     cursor: not-allowed;
   }
 `;
@@ -313,8 +315,9 @@ const Feedback = styled.div`
   font-size: 14px;
   text-align: center;
   background: ${({ $tone }) =>
-    $tone === "success" ? "rgba(14,165,233,0.16)" : "rgba(239,68,68,0.16)"};
-  color: ${({ $tone }) => ($tone === "success" ? "#0ea5e9" : "#ef4444")};
+    $tone === "success" ? "rgba(45,212,191,0.14)" : "rgba(255,90,106,0.14)"};
+  color: ${({ $tone, theme }) =>
+    $tone === "success" ? theme.colors.success : theme.colors.error};
 `;
 
 const SwitchHint = styled.p`
@@ -329,7 +332,7 @@ const InlineButton = styled.button`
   background: transparent;
   color: ${({ theme }) => theme.colors.primary};
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 
   &:hover {

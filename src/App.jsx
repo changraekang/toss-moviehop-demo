@@ -27,26 +27,35 @@ const RECENT_DAYS = 30; // 상영일 기준 1개월 이내 신작만
 
 const theme = {
   colors: {
-    background: "#f7f8fa",
-    surface: "#ffffff",
-    primary: "#0068ff",
-    text: "#1f2a37",
-    secondaryText: "#6b7280",
-    border: "#e5e7eb",
-    success: "#0ea5e9",
-    error: "#ef4444",
+    background: "#0a0b0f",
+    surface: "#15171e",
+    surfaceAlt: "#1e212b",
+    primary: "#4f8cff",
+    primaryHover: "#6b9dff",
+    text: "#f3f4f6",
+    secondaryText: "#9aa3b2",
+    border: "#2a2e3a",
+    gold: "#ffc043",
+    success: "#2dd4bf",
+    error: "#ff5a6a",
+    naver: "#03c75a",
   },
 };
 
 const GlobalStyle = createGlobalStyle`
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
     background: ${theme.colors.background};
     color: ${theme.colors.text};
     font-family: "Pretendard Variable", "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
-  #root { min-height: 100vh; }
+  #root { min-height: 100dvh; }
+  img { display: block; }
+  ::selection { background: ${theme.colors.primary}; color: #fff; }
 `;
 
 function App() {
@@ -320,15 +329,15 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyle />
-      <Shell>
-        <Header
-          user={user}
-          isLoggedIn={isLoggedIn}
-          onHome={() => setView("home")}
-          onLogin={() => goAuth("login")}
-          onLogout={handleLogout}
-        />
+      <Header
+        user={user}
+        isLoggedIn={isLoggedIn}
+        onHome={() => setView("home")}
+        onLogin={() => goAuth("login")}
+        onLogout={handleLogout}
+      />
 
+      <Shell>
         {toast && <Toast>{toast}</Toast>}
 
         {view === "auth" && (
@@ -345,6 +354,7 @@ function App() {
         {view === "home" && (
           <Main>
             <Hero>
+              <HeroEyebrow>MOVIE QUIZ · 진짜 본 사람만</HeroEyebrow>
               <HeroTitle>진짜 본 사람만 별점을 남깁니다</HeroTitle>
               <HeroSub>
                 {isLoggedIn
@@ -361,39 +371,35 @@ function App() {
 
             {!loading && !error && movies.length > 0 && (
               <>
-                <CountText>총 {total}편</CountText>
+                <CountText>최근 개봉작 {total}편</CountText>
                 <Grid>
                   {movies.map((movie) => (
                     <Card
                       key={movie._id}
                       onClick={() => setSelectedMovieId(movie._id)}
                     >
-                      {movie.posterUrl ? (
-                        <Poster
-                          src={movie.posterUrl}
-                          alt={`${movie.title} 포스터`}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <PosterFallback>포스터 없음</PosterFallback>
-                      )}
+                      <PosterWrap>
+                        {movie.posterUrl ? (
+                          <Poster
+                            src={movie.posterUrl}
+                            alt={`${movie.title} 포스터`}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <PosterFallback>포스터 없음</PosterFallback>
+                        )}
+                        <RatingBadge>
+                          <span>★</span>
+                          {formatAverage(movie.ratingAverage)}
+                        </RatingBadge>
+                      </PosterWrap>
                       <CardBody>
                         <CardTitle>{movie.title}</CardTitle>
-                        <CardMeta>{formatYear(movie.releaseDate)}</CardMeta>
-                        <CardRating>
-                          <StarRating
-                            value={movie.ratingAverage ?? 0}
-                            readOnly
-                            size={16}
-                          />
-                          <RatingNum>
-                            {formatAverage(movie.ratingAverage)}
-                            <RatingCount>
-                              ({movie.ratingCount ?? 0})
-                            </RatingCount>
-                          </RatingNum>
-                        </CardRating>
+                        <CardMeta>
+                          {formatYear(movie.releaseDate)} · 평가{" "}
+                          {movie.ratingCount ?? 0}
+                        </CardMeta>
                       </CardBody>
                     </Card>
                   ))}
@@ -437,9 +443,9 @@ function App() {
 }
 
 function formatYear(value) {
-  if (!value) return "연도 정보 없음";
+  if (!value) return "연도 미상";
   const y = new Date(value).getFullYear();
-  return Number.isNaN(y) ? "연도 정보 없음" : `${y}년`;
+  return Number.isNaN(y) ? "연도 미상" : `${y}`;
 }
 
 function formatAverage(value) {
@@ -450,63 +456,96 @@ function formatAverage(value) {
 const Shell = styled.div`
   max-width: 1080px;
   margin: 0 auto;
-  padding: 28px 24px 64px;
+  padding: 20px 16px calc(40px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 22px;
 
-  @media (max-width: 640px) {
-    padding: 20px 16px 48px;
+  @media (min-width: 768px) {
+    padding: 28px 24px 64px;
   }
 `;
 
 const Toast = styled.div`
   position: fixed;
-  top: 20px;
+  top: calc(16px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  background: ${({ theme }) => theme.colors.text};
-  color: #fff;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
+  color: ${({ theme }) => theme.colors.text};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   padding: 12px 20px;
   border-radius: 999px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 2000;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
+  z-index: 3000;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  max-width: calc(100vw - 32px);
 `;
 
 const Main = styled.main`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 `;
 
 const Hero = styled.section`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: radial-gradient(
+      120% 140% at 0% 0%,
+      rgba(79, 140, 255, 0.18),
+      transparent 60%
+    ),
+    ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+
+  @media (min-width: 768px) {
+    padding: 28px 32px;
+  }
+`;
+
+const HeroEyebrow = styled.span`
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: ${({ theme }) => theme.colors.primary};
 `;
 
 const HeroTitle = styled.h1`
   margin: 0;
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.02em;
+  line-height: 1.25;
+
+  @media (min-width: 768px) {
+    font-size: 34px;
+  }
 `;
 
 const HeroSub = styled.p`
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.6;
   color: ${({ theme }) => theme.colors.secondaryText};
+
+  @media (min-width: 768px) {
+    font-size: 15px;
+  }
 `;
 
 const CountText = styled.div`
   font-size: 13px;
+  font-weight: 600;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
 const Placeholder = styled.div`
-  padding: 64px 16px;
+  padding: 56px 16px;
   text-align: center;
   font-weight: 500;
   color: ${({ $error, theme }) =>
@@ -515,90 +554,108 @@ const Placeholder = styled.div`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 12px;
 
-  @media (max-width: 480px) {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 14px;
+  @media (min-width: 560px) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px 16px;
   }
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+`;
+
+const PosterWrap = styled.div`
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
+  aspect-ratio: 2 / 3;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
 `;
 
 const Card = styled.button`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   border: none;
   background: transparent;
   text-align: left;
   padding: 0;
   cursor: pointer;
+  transition: transform 0.18s ease;
+
+  &:active {
+    transform: scale(0.97);
+  }
+  @media (hover: hover) {
+    &:hover ${PosterWrap} {
+      box-shadow: 0 14px 34px rgba(79, 140, 255, 0.25);
+    }
+  }
 `;
 
 const Poster = styled.img`
   width: 100%;
-  aspect-ratio: 2 / 3;
+  height: 100%;
   object-fit: cover;
-  border-radius: 14px;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
-  background: #e2e8f0;
-  transition: transform 0.2s ease;
-
-  ${Card}:hover & {
-    transform: translateY(-4px);
-  }
 `;
 
 const PosterFallback = styled.div`
   width: 100%;
-  aspect-ratio: 2 / 3;
-  border-radius: 14px;
-  background: rgba(226, 232, 240, 0.8);
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: ${({ theme }) => theme.colors.secondaryText};
   font-weight: 600;
+  font-size: 13px;
+`;
+
+const RatingBadge = styled.div`
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(10, 11, 15, 0.72);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  span {
+    color: ${({ theme }) => theme.colors.gold};
+  }
 `;
 
 const CardBody = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  padding: 0 2px;
 `;
 
 const CardTitle = styled.h2`
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.3;
+  color: ${({ theme }) => theme.colors.text};
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 `;
 
 const CardMeta = styled.span`
-  font-size: 13px;
+  font-size: 12px;
   color: ${({ theme }) => theme.colors.secondaryText};
-`;
-
-const CardRating = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-`;
-
-const RatingNum = styled.span`
-  font-size: 13px;
-  font-weight: 700;
-`;
-
-const RatingCount = styled.span`
-  font-weight: 400;
-  color: ${({ theme }) => theme.colors.secondaryText};
-  margin-left: 2px;
 `;
 
 const Sentinel = styled.div`
@@ -607,8 +664,8 @@ const Sentinel = styled.div`
 
 const LoadMore = styled.div`
   text-align: center;
-  padding: 20px;
-  font-size: 14px;
+  padding: 18px;
+  font-size: 13px;
   font-weight: 500;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;

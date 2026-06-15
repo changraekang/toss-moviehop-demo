@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import StarRating from "./StarRating.jsx";
 import { fetchMovieReviews, fetchMovieRating } from "../api.js";
 
@@ -9,7 +9,7 @@ const modalRoot =
     ? document.getElementById("modal-root") ?? document.body
     : null;
 
-// 영화 상세 + 평점 등록(퀴즈 게이팅) + 리뷰
+// 영화 상세 + 평점 등록(퀴즈 게이팅) + 리뷰. 모바일에선 바텀시트.
 function MovieModal({
   movie,
   isLoggedIn,
@@ -41,7 +41,6 @@ function MovieModal({
     if (!movieId) return;
     let ignore = false;
     setLoading(true);
-
     Promise.all([
       fetchMovieReviews(movieId).catch(() => []),
       fetchMovieRating(movieId).catch(() => null),
@@ -56,13 +55,11 @@ function MovieModal({
       }
       setLoading(false);
     });
-
     return () => {
       ignore = true;
     };
   }, [movieId]);
 
-  // 별점 등록이 반영되면 평균 표시 갱신 (movie prop 이 부모에서 업데이트됨)
   useEffect(() => {
     setStats({
       average: movie?.ratingAverage ?? 0,
@@ -76,20 +73,11 @@ function MovieModal({
 
   return createPortal(
     <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <Dialog role="dialog" aria-modal="true">
-        <ModalHeader>
-          <div>
-            <ModalTitle>{movie.title}</ModalTitle>
-            <ModalSubtitle>
-              {formatYear(movie.releaseDate)}
-              {movie.genres?.length ? ` · ${movie.genres.join(", ")}` : ""}
-              {movie.runtime ? ` · ${movie.runtime}분` : ""}
-            </ModalSubtitle>
-          </div>
-          <CloseButton type="button" onClick={onClose} aria-label="닫기">
-            ✕
-          </CloseButton>
-        </ModalHeader>
+      <Sheet role="dialog" aria-modal="true">
+        <Grabber />
+        <CloseButton type="button" onClick={onClose} aria-label="닫기">
+          ✕
+        </CloseButton>
 
         <Hero>
           {poster ? (
@@ -97,211 +85,252 @@ function MovieModal({
           ) : (
             <PosterFallback>포스터 없음</PosterFallback>
           )}
-
           <HeroInfo>
-            <AverageBlock>
-              <StarRating value={stats.average} readOnly size={24} />
+            <Title>{movie.title}</Title>
+            <Sub>
+              {formatYear(movie.releaseDate)}
+              {movie.genres?.length ? ` · ${movie.genres.join(", ")}` : ""}
+              {movie.runtime ? ` · ${movie.runtime}분` : ""}
+            </Sub>
+            <AverageRow>
+              <StarRating value={stats.average} readOnly size={20} />
               <AverageText>
                 {formatAverage(stats.average)}
-                <Count> · {stats.count}명 참여</Count>
+                <Count> · {stats.count}명</Count>
               </AverageText>
-            </AverageBlock>
-
-            <RateBox>
-              <RateTitle>내 평점</RateTitle>
-              <StarRating
-                value={myRating ?? 0}
-                onRate={(v) => onRateAttempt(v)}
-                disabled={ratingPending}
-                size={34}
-              />
-              <RateHint>
-                {ratingPending
-                  ? "평점을 등록하는 중입니다…"
-                  : myRating != null
-                  ? `현재 ${formatAverage(myRating)}점을 주셨어요. 별을 눌러 수정할 수 있어요.`
-                  : isLoggedIn
-                  ? "별을 누르면 퀴즈를 푼 뒤 평점이 등록됩니다."
-                  : "별을 누르면 로그인 화면으로 이동합니다."}
-              </RateHint>
-            </RateBox>
+            </AverageRow>
           </HeroInfo>
         </Hero>
 
-        <Section>
-          <SectionTitle>줄거리</SectionTitle>
-          <Overview>
-            {movie.overview || "등록된 줄거리 정보가 없습니다."}
-          </Overview>
-        </Section>
+        <Body>
+          <RateBox>
+            <RateTitle>내 평점</RateTitle>
+            <StarRating
+              value={myRating ?? 0}
+              onRate={(v) => onRateAttempt(v)}
+              disabled={ratingPending}
+              size={36}
+            />
+            <RateHint>
+              {ratingPending
+                ? "평점을 등록하는 중입니다…"
+                : myRating != null
+                ? `${formatAverage(myRating)}점을 주셨어요. 별을 눌러 수정할 수 있어요.`
+                : isLoggedIn
+                ? "별을 누르면 퀴즈를 푼 뒤 평점이 등록됩니다."
+                : "별을 누르면 로그인 화면으로 이동합니다."}
+            </RateHint>
+          </RateBox>
 
-        <Section>
-          <SectionTitle>리뷰</SectionTitle>
-          {loading ? (
-            <Empty>불러오는 중입니다…</Empty>
-          ) : reviews.length === 0 ? (
-            <Empty>아직 등록된 리뷰가 없습니다.</Empty>
-          ) : (
-            <ReviewList>
-              {reviews.map((review) => (
-                <ReviewItem key={review._id ?? review.createdAt}>
-                  <ReviewHead>
-                    <Reviewer>{review.username ?? "익명"}</Reviewer>
-                    <ReviewDate>{formatDate(review.createdAt)}</ReviewDate>
-                  </ReviewHead>
-                  <ReviewBody>{review.content}</ReviewBody>
-                </ReviewItem>
-              ))}
-            </ReviewList>
-          )}
-        </Section>
-      </Dialog>
+          <Section>
+            <SectionTitle>줄거리</SectionTitle>
+            <Overview>
+              {movie.overview || "등록된 줄거리 정보가 없습니다."}
+            </Overview>
+          </Section>
+
+          <Section>
+            <SectionTitle>리뷰</SectionTitle>
+            {loading ? (
+              <Empty>불러오는 중입니다…</Empty>
+            ) : reviews.length === 0 ? (
+              <Empty>아직 등록된 리뷰가 없습니다.</Empty>
+            ) : (
+              <ReviewList>
+                {reviews.map((review) => (
+                  <ReviewItem key={review._id ?? review.createdAt}>
+                    <ReviewHead>
+                      <Reviewer>{review.username ?? "익명"}</Reviewer>
+                      <ReviewDate>{formatDate(review.createdAt)}</ReviewDate>
+                    </ReviewHead>
+                    <ReviewBody>{review.content}</ReviewBody>
+                  </ReviewItem>
+                ))}
+              </ReviewList>
+            )}
+          </Section>
+        </Body>
+      </Sheet>
     </Overlay>,
     modalRoot
   );
 }
 
 function formatYear(value) {
-  if (!value) return "연도 정보 없음";
+  if (!value) return "연도 미상";
   const y = new Date(value).getFullYear();
-  return Number.isNaN(y) ? "연도 정보 없음" : `${y}년`;
+  return Number.isNaN(y) ? "연도 미상" : `${y}년`;
 }
-
 function formatDate(value) {
   if (!value) return "";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ko-KR");
 }
-
 function formatAverage(value) {
   if (typeof value !== "number" || Number.isNaN(value)) return "0.0";
-  return value.toFixed(1);
+  return Number(value).toFixed(1);
 }
+
+const slideUp = keyframes`
+  from { transform: translateY(24px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+`;
 
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(0, 0, 0, 0.66);
+  backdrop-filter: blur(2px);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 40px 16px;
   z-index: 1000;
-`;
 
-const Dialog = styled.div`
-  width: min(820px, 100%);
-  background: #fff;
-  border-radius: 24px;
-  padding: 28px;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.2);
-  max-height: calc(100vh - 80px);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-
-  @media (max-width: 640px) {
-    padding: 22px 18px;
-    border-radius: 20px;
+  @media (min-width: 768px) {
+    align-items: center;
+    padding: 32px 16px;
   }
 `;
 
-const ModalHeader = styled.header`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+const Sheet = styled.div`
+  position: relative;
+  width: 100%;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 22px 22px 0 0;
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding: 14px 18px calc(24px + env(safe-area-inset-bottom));
+  animation: ${slideUp} 0.22s ease;
+  -webkit-overflow-scrolling: touch;
+
+  @media (min-width: 768px) {
+    width: min(760px, 100%);
+    border-radius: 22px;
+    max-height: calc(100dvh - 64px);
+    padding: 24px 28px;
+  }
 `;
 
-const ModalTitle = styled.h2`
-  margin: 0;
-  font-size: 26px;
-  font-weight: 700;
-`;
+const Grabber = styled.div`
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: ${({ theme }) => theme.colors.border};
+  margin: 2px auto 12px;
 
-const ModalSubtitle = styled.p`
-  margin: 6px 0 0;
-  color: ${({ theme }) => theme.colors.secondaryText};
-  font-size: 14px;
+  @media (min-width: 768px) {
+    display: none;
+  }
 `;
 
 const CloseButton = styled.button`
+  position: absolute;
+  top: 12px;
+  right: 14px;
   border: none;
-  background: rgba(148, 163, 184, 0.16);
-  color: #1f2937;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
+  color: ${({ theme }) => theme.colors.text};
   border-radius: 999px;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   cursor: pointer;
-  font-size: 18px;
-  flex-shrink: 0;
+  font-size: 15px;
+  z-index: 2;
 `;
 
 const Hero = styled.section`
   display: flex;
-  gap: 24px;
+  gap: 16px;
   align-items: flex-start;
-
-  @media (max-width: 720px) {
-    flex-direction: column;
-  }
 `;
 
 const Poster = styled.img`
-  width: 170px;
-  border-radius: 16px;
-  box-shadow: 0 18px 28px rgba(15, 23, 42, 0.2);
+  width: 104px;
+  border-radius: 12px;
   flex-shrink: 0;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
 
-  @media (max-width: 720px) {
-    width: 140px;
-    align-self: center;
+  @media (min-width: 768px) {
+    width: 150px;
   }
 `;
 
 const PosterFallback = styled.div`
-  width: 170px;
-  height: 250px;
-  border-radius: 16px;
-  background: rgba(226, 232, 240, 0.6);
+  width: 104px;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
   display: flex;
   align-items: center;
   justify-content: center;
   color: ${({ theme }) => theme.colors.secondaryText};
   font-weight: 600;
+  font-size: 12px;
   flex-shrink: 0;
+
+  @media (min-width: 768px) {
+    width: 150px;
+  }
 `;
 
 const HeroInfo = styled.div`
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 8px;
+  padding-right: 28px;
 `;
 
-const AverageBlock = styled.div`
+const Title = styled.h2`
+  margin: 0;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.25;
+
+  @media (min-width: 768px) {
+    font-size: 26px;
+  }
+`;
+
+const Sub = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.secondaryText};
+`;
+
+const AverageRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  margin-top: 2px;
 `;
 
 const AverageText = styled.span`
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
 `;
 
 const Count = styled.span`
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
+const Body = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin-top: 20px;
+`;
+
 const RateBox = styled.div`
-  background: rgba(0, 104, 255, 0.05);
+  background: ${({ theme }) => theme.colors.surfaceAlt};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 16px;
-  padding: 18px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -309,8 +338,9 @@ const RateBox = styled.div`
 
 const RateTitle = styled.h3`
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
+  color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
 const RateHint = styled.p`
@@ -327,36 +357,39 @@ const Section = styled.section`
 
 const SectionTitle = styled.h3`
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
 `;
 
 const Overview = styled.p`
   margin: 0;
-  font-size: 15px;
-  line-height: 1.6;
-  color: #334155;
+  font-size: 14px;
+  line-height: 1.65;
+  color: ${({ theme }) => theme.colors.text};
+  opacity: 0.85;
 `;
 
 const Empty = styled.div`
-  padding: 22px;
-  border-radius: 14px;
-  background: rgba(226, 232, 240, 0.4);
+  padding: 20px;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
   text-align: center;
   color: ${({ theme }) => theme.colors.secondaryText};
   font-weight: 500;
+  font-size: 14px;
 `;
 
 const ReviewList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 `;
 
 const ReviewItem = styled.article`
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: 14px 16px;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -370,17 +403,19 @@ const ReviewHead = styled.header`
 
 const Reviewer = styled.span`
   font-weight: 700;
+  font-size: 14px;
 `;
 
 const ReviewDate = styled.time`
-  color: #94a3b8;
-  font-size: 13px;
+  color: ${({ theme }) => theme.colors.secondaryText};
+  font-size: 12px;
 `;
 
 const ReviewBody = styled.p`
   margin: 0;
   font-size: 14px;
-  color: #334155;
+  color: ${({ theme }) => theme.colors.text};
+  opacity: 0.85;
   line-height: 1.6;
 `;
 

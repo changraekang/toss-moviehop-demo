@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { fetchQuiz, checkQuiz } from "../api.js";
 
 const modalRoot =
@@ -8,15 +8,14 @@ const modalRoot =
     ? document.getElementById("modal-root") ?? document.body
     : null;
 
-// 별점을 매기기 전에 풀어야 하는 영화 퀴즈 모달
-// 정답을 맞히면 onSolved() 호출 → 부모가 별점 등록
+// 별점을 매기기 전에 풀어야 하는 영화 퀴즈 (다크 / 모바일 바텀시트)
 function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null); // { isCorrect, correctAnswer }
+  const [result, setResult] = useState(null);
 
   const loadQuiz = useCallback(async () => {
     setLoading(true);
@@ -57,10 +56,7 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
         token
       );
       setResult(res);
-      if (res.isCorrect) {
-        // 백엔드가 완료 상태를 기록함 → 잠시 후 별점 등록 단계로
-        setTimeout(() => onSolved(), 700);
-      }
+      if (res.isCorrect) setTimeout(() => onSolved(), 700);
     } catch (err) {
       setError(err.message ?? "정답 확인에 실패했습니다.");
     } finally {
@@ -72,10 +68,11 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
 
   return createPortal(
     <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <Dialog role="dialog" aria-modal="true">
+      <Sheet role="dialog" aria-modal="true">
+        <Grabber />
         <Header>
           <div>
-            <Badge>퀴즈</Badge>
+            <Badge>QUIZ</Badge>
             <Title>별점을 매기려면 퀴즈를 풀어주세요</Title>
             {movieTitle && <Subtitle>{movieTitle}</Subtitle>}
           </div>
@@ -93,10 +90,8 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
             <Options>
               {quiz.options.map((option, index) => {
                 const isPicked = selected === index;
-                const isAnswer =
-                  result && result.correctAnswer === option;
-                const isWrongPick =
-                  result && isPicked && !result.isCorrect;
+                const isAnswer = result && result.correctAnswer === option;
+                const isWrongPick = result && isPicked && !result.isCorrect;
                 return (
                   <OptionButton
                     key={index}
@@ -138,32 +133,60 @@ function QuizModal({ movieId, movieTitle, token, onClose, onSolved }) {
             </Actions>
           </>
         )}
-      </Dialog>
+      </Sheet>
     </Overlay>,
     modalRoot
   );
 }
 
+const slideUp = keyframes`
+  from { transform: translateY(24px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+`;
+
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 24px 16px;
   z-index: 1100;
+
+  @media (min-width: 768px) {
+    align-items: center;
+    padding: 24px 16px;
+  }
 `;
 
-const Dialog = styled.div`
-  width: min(520px, 100%);
-  background: #fff;
-  border-radius: 24px;
-  padding: 28px;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
+const Sheet = styled.div`
+  width: 100%;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 22px 22px 0 0;
+  padding: 14px 18px calc(22px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
+  animation: ${slideUp} 0.22s ease;
+
+  @media (min-width: 768px) {
+    width: min(520px, 100%);
+    border-radius: 22px;
+    padding: 24px;
+  }
+`;
+
+const Grabber = styled.div`
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: ${({ theme }) => theme.colors.border};
+  margin: 0 auto 4px;
+  @media (min-width: 768px) {
+    display: none;
+  }
 `;
 
 const Header = styled.header`
@@ -175,10 +198,11 @@ const Header = styled.header`
 
 const Badge = styled.span`
   display: inline-block;
-  background: rgba(0, 104, 255, 0.1);
+  background: rgba(79, 140, 255, 0.16);
   color: ${({ theme }) => theme.colors.primary};
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   padding: 4px 10px;
   border-radius: 999px;
   margin-bottom: 8px;
@@ -186,31 +210,32 @@ const Badge = styled.span`
 
 const Title = styled.h2`
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.3;
 `;
 
 const Subtitle = styled.p`
   margin: 6px 0 0;
-  font-size: 14px;
+  font-size: 13px;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
 
 const CloseButton = styled.button`
   border: none;
-  background: rgba(148, 163, 184, 0.16);
-  color: #1f2937;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
+  color: ${({ theme }) => theme.colors.text};
   border-radius: 999px;
   width: 34px;
   height: 34px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   flex-shrink: 0;
 `;
 
 const State = styled.div`
   text-align: center;
-  padding: 32px 0;
+  padding: 28px 0;
   font-weight: 500;
   color: ${({ $error, theme }) =>
     $error ? theme.colors.error : theme.colors.secondaryText};
@@ -219,7 +244,7 @@ const State = styled.div`
 const Question = styled.p`
   margin: 0;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.5;
 `;
 
@@ -232,28 +257,29 @@ const Options = styled.div`
 const OptionButton = styled.button`
   text-align: left;
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 15px 16px;
   font-size: 15px;
   cursor: pointer;
   transition: all 0.15s ease;
-  border: 2px solid
+  min-height: 50px;
+  color: ${({ theme }) => theme.colors.text};
+  border: 1.5px solid
     ${({ $picked, $correct, $wrong, theme }) =>
       $correct
-        ? "#16a34a"
+        ? theme.colors.success
         : $wrong
         ? theme.colors.error
         : $picked
         ? theme.colors.primary
         : theme.colors.border};
-  background: ${({ $picked, $correct, $wrong }) =>
+  background: ${({ $picked, $correct, $wrong, theme }) =>
     $correct
-      ? "rgba(22,163,74,0.1)"
+      ? "rgba(45,212,191,0.12)"
       : $wrong
-      ? "rgba(239,68,68,0.08)"
+      ? "rgba(255,90,106,0.12)"
       : $picked
-      ? "rgba(0,104,255,0.06)"
-      : "#fff"};
-  color: ${({ theme }) => theme.colors.text};
+      ? "rgba(79,140,255,0.12)"
+      : theme.colors.surfaceAlt};
 
   &:disabled {
     cursor: default;
@@ -262,28 +288,30 @@ const OptionButton = styled.button`
 
 const Feedback = styled.div`
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
-  color: ${({ $ok, theme }) => ($ok ? "#16a34a" : theme.colors.error)};
+  color: ${({ $ok, theme }) => ($ok ? theme.colors.success : theme.colors.error)};
 `;
 
 const Actions = styled.div`
   display: flex;
-  justify-content: flex-end;
 `;
 
 const PrimaryButton = styled.button`
+  flex: 1;
   border: none;
   border-radius: 12px;
   background: ${({ theme }) => theme.colors.primary};
   color: #fff;
-  padding: 12px 20px;
+  padding: 15px 20px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  min-height: 50px;
 
   &:disabled {
-    background: rgba(0, 104, 255, 0.4);
+    background: ${({ theme }) => theme.colors.surfaceAlt};
+    color: ${({ theme }) => theme.colors.secondaryText};
     cursor: not-allowed;
   }
 `;
