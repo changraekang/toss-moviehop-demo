@@ -13,6 +13,7 @@ import { useAuth } from "./useAuth.js";
 import {
   fetchMovies,
   fetchMyRating,
+  fetchMyRatings,
   submitRating,
   fetchQuizCompletion,
   naverLogin,
@@ -33,6 +34,7 @@ const TAB_LABEL = {
   new: "신작",
   hit: "흥행작 500만+",
   indie: "독립영화",
+  mine: "내 평점",
 };
 
 const theme = {
@@ -92,8 +94,10 @@ const GlobalStyle = createGlobalStyle`
     font-family: "Paperlogy", "Pretendard Variable", "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
-  #root { min-height: 100dvh; }
+  html { overflow-x: hidden; }
+  #root { min-height: 100dvh; overflow-x: hidden; width: 100%; }
   img { display: block; }
   ::selection { background: ${theme.colors.primary}; color: #fff; }
 `;
@@ -123,6 +127,7 @@ function App() {
   const [toast, setToast] = useState(null);
 
   const loadingRef = useRef(false);
+  const seedRef = useRef(Math.random()); // 세션별 랜덤 정렬 시드
 
   const loadPage = useCallback(
     async (pageToLoad, replace) => {
@@ -132,6 +137,16 @@ function App() {
       if (replace) setLoading(true);
       else setLoadingMore(true);
       try {
+        if (homeTab === "mine") {
+          const data = await fetchMyRatings(token);
+          const list = Array.isArray(data?.movies) ? data.movies : [];
+          setMovies(list);
+          setHasMore(false);
+          setTotal(data?.total ?? list.length);
+          setPage(0);
+          setError(null);
+          return;
+        }
         const params = { page: pageToLoad, limit: PAGE_SIZE };
         if (homeTab === "movies") {
           params.onlyWithQuiz = true; // 영화 목록: 퀴즈 있는 영화만
@@ -141,6 +156,7 @@ function App() {
           else if (homeTab === "hit") params.minAudience = HIT_AUDIENCE; // 흥행작
           else if (homeTab === "indie") params.independent = true; // 독립영화
         }
+        if (homeTab !== "new") params.seed = seedRef.current; // 세션 랜덤(신작 제외)
         if (user?.id) params.userId = user.id; // 각 영화 문제 완료여부(hasCompleted)
         const data = await fetchMovies(params);
         const list = Array.isArray(data?.movies) ? data.movies : [];
@@ -162,7 +178,7 @@ function App() {
         setLoadingMore(false);
       }
     },
-    [isLoggedIn, homeTab, user]
+    [isLoggedIn, homeTab, user, token]
   );
 
   // 로그인 상태/탭이 바뀌면 목록 초기화 후 첫 페이지
@@ -427,6 +443,13 @@ function App() {
               >
                 독립영화
               </Tab>
+              <Tab
+                type="button"
+                $active={homeTab === "mine"}
+                onClick={() => setHomeTab("mine")}
+              >
+                내 평점
+              </Tab>
             </Tabs>
 
             {loading && <Placeholder>영화를 불러오는 중입니다…</Placeholder>}
@@ -435,6 +458,8 @@ function App() {
               <Placeholder>
                 {homeTab === "new"
                   ? "최근 개봉작이 아직 없어요."
+                  : homeTab === "mine"
+                  ? "아직 평점을 준 영화가 없어요."
                   : `${TAB_LABEL[homeTab]} 목록이 아직 없어요.`}
               </Placeholder>
             )}
@@ -476,36 +501,49 @@ function App() {
                             {formatAudience(movie.audience)
                               ? ` · 관객 ${formatAudience(movie.audience)}`
                               : ""}
-                            {" · ★ "}
-                            {formatAverage(movie.ratingAverage)} (
-                            {movie.ratingCount ?? 0})
                           </CardMeta>
+                          <CardRate>
+                            ★ {formatAverage(movie.ratingAverage)} (
+                            {movie.ratingCount ?? 0})
+                          </CardRate>
                         </Info>
                         <RateRow>
-                          <StarSlider
-                            value={userRatings[movie._id] ?? 0}
-                            onCommit={(v) => handleRateAttempt(movie._id, v)}
-                            disabled={ratingPendingId === movie._id}
-                            locked={!completions[movie._id]}
-                            onUnlock={() =>
-                              movie.hasQuiz === false
-                                ? setQuizSubmitMovie(movie)
-                                : setQuizState({
-                                    movieId: movie._id,
-                                    pendingRating: null,
-                                  })
-                            }
-                            hideScore
-                            size={34}
-                          />
+                          {homeTab === "mine" ? (
+                            <StarSlider
+                              value={movie.myRating ?? 0}
+                              disabled
+                              hideScore
+                              size={34}
+                            />
+                          ) : (
+                            <StarSlider
+                              value={userRatings[movie._id] ?? 0}
+                              onCommit={(v) => handleRateAttempt(movie._id, v)}
+                              disabled={ratingPendingId === movie._id}
+                              locked={!completions[movie._id]}
+                              onUnlock={() =>
+                                movie.hasQuiz === false
+                                  ? setQuizSubmitMovie(movie)
+                                  : setQuizState({
+                                      movieId: movie._id,
+                                      pendingRating: null,
+                                    })
+                              }
+                              hideScore
+                              size={34}
+                            />
+                          )}
                         </RateRow>
                       </CardBody>
-                      <ScoreBadge
-                        $val={userRatings[movie._id] ?? 0}
-                        $locked={!completions[movie._id]}
-                      >
-                        {(userRatings[movie._id] ?? 0).toFixed(1)}
-                      </ScoreBadge>
+                      {homeTab === "mine" ? (
+                        <ScoreBadge $val={movie.myRating ?? 0} $locked={false}>
+                          {(movie.myRating ?? 0).toFixed(1)}
+                        </ScoreBadge>
+                      ) : (
+                        <ScoreBadge $val={movie.ratingAverage ?? 0} $locked={false}>
+                          {formatAverage(movie.ratingAverage)}
+                        </ScoreBadge>
+                      )}
                     </Card>
                   ))}
                 </Grid>
@@ -588,19 +626,20 @@ const Shell = styled.div.attrs({ className: "Shell" })`
 
 const Toast = styled.div.attrs({ className: "Toast" })`
   position: fixed;
-  top: calc(16px + env(safe-area-inset-top));
+  top: 42%;
   left: 50%;
-  transform: translateX(-50%);
-  background: ${({ theme }) => theme.colors.surfaceAlt};
-  color: ${({ theme }) => theme.colors.text};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: 12px 20px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
+  transform: translate(-50%, -50%);
+  background: ${({ theme }) => theme.colors.primary};
+  color: #fff;
+  border: none;
+  padding: 16px 26px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
   z-index: 3000;
-  box-shadow: 0 12px 28px rgba(104, 71, 37, 0.16);
-  max-width: calc(100vw - 32px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+  max-width: calc(100vw - 48px);
 `;
 
 const GuestArea = styled.div.attrs({ className: "GuestArea" })`
@@ -846,8 +885,14 @@ const CardTitle = styled.h2.attrs({ className: "CardTitle" })`
 `;
 
 const CardMeta = styled.span.attrs({ className: "CardMeta" })`
-  font-size: 16.5px;
+  font-size: 15px;
   color: ${({ theme }) => theme.colors.secondaryText};
+`;
+
+const CardRate = styled.span.attrs({ className: "CardRate" })`
+  font-size: 15px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.gold};
 `;
 
 const RateRow = styled.div.attrs({ className: "RateRow" })`

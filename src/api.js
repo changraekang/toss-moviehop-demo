@@ -34,7 +34,7 @@ export const naverLogin = ({ accessToken, tokenType, state, type }) =>
   });
 
 // --- 영화 ---
-export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, onlyWithQuiz = false, userId, minAudience, independent = false, quizFlag = false } = {}) =>
+export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, onlyWithQuiz = false, userId, minAudience, independent = false, quizFlag = false, seed } = {}) =>
   request(
     `/movies?page=${page}&limit=${limit}&rated=${rated}` +
       (recentDays ? `&recentDays=${recentDays}` : "") +
@@ -42,8 +42,12 @@ export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, o
       (userId ? `&userId=${userId}` : "") +
       (minAudience ? `&minAudience=${minAudience}` : "") +
       (independent ? "&independent=true" : "") +
-      (quizFlag ? "&quizFlag=true" : "")
+      (quizFlag ? "&quizFlag=true" : "") +
+      (seed !== undefined ? `&seed=${seed}` : "")
   );
+
+// 내가 평점을 준 영화 목록 (+ 내 점수)
+export const fetchMyRatings = (token) => request("/ratings/my", { token });
 
 // --- 평점 ---
 export const fetchMovieRating = (movieId) =>
