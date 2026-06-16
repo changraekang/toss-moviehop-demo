@@ -5,8 +5,10 @@ import AuthView from "./components/AuthView.jsx";
 import LinkView from "./components/LinkView.jsx";
 import MovieModal from "./components/MovieModal.jsx";
 import QuizModal from "./components/QuizModal.jsx";
+import QuizSubmitModal from "./components/QuizSubmitModal.jsx";
 import StarRating from "./components/StarRating.jsx";
 import StarSlider, { scoreColor } from "./components/StarSlider.jsx";
+import { formatAudience } from "./format.js";
 import { useAuth } from "./useAuth.js";
 import {
   fetchMovies,
@@ -25,6 +27,13 @@ import {
 
 const PAGE_SIZE = 24;
 const RECENT_DAYS = 30; // 신작 탭: 최근 N일 개봉
+const HIT_AUDIENCE = 5_000_000; // 흥행작 탭: 관객수 하한
+const TAB_LABEL = {
+  movies: "영화 목록",
+  new: "신작",
+  hit: "흥행작 500만+",
+  indie: "독립영화",
+};
 
 const theme = {
   colors: {
@@ -110,6 +119,7 @@ function App() {
   const [completions, setCompletions] = useState({}); // { movieId: bool }
   const [ratingPendingId, setRatingPendingId] = useState(null);
   const [quizState, setQuizState] = useState(null);
+  const [quizSubmitMovie, setQuizSubmitMovie] = useState(null); // 퀴즈 직접 올리기
   const [toast, setToast] = useState(null);
 
   const loadingRef = useRef(false);
@@ -123,8 +133,14 @@ function App() {
       else setLoadingMore(true);
       try {
         const params = { page: pageToLoad, limit: PAGE_SIZE };
-        if (homeTab === "new") params.recentDays = RECENT_DAYS; // 신작 탭
-        else params.onlyWithQuiz = true; // 영화 목록 탭
+        if (homeTab === "movies") {
+          params.onlyWithQuiz = true; // 영화 목록: 퀴즈 있는 영화만
+        } else {
+          params.quizFlag = true; // 그 외 탭: 퀴즈 보유여부(hasQuiz)만 표시
+          if (homeTab === "new") params.recentDays = RECENT_DAYS; // 신작
+          else if (homeTab === "hit") params.minAudience = HIT_AUDIENCE; // 흥행작
+          else if (homeTab === "indie") params.independent = true; // 독립영화
+        }
         if (user?.id) params.userId = user.id; // 각 영화 문제 완료여부(hasCompleted)
         const data = await fetchMovies(params);
         const list = Array.isArray(data?.movies) ? data.movies : [];
@@ -397,6 +413,20 @@ function App() {
               >
                 신작
               </Tab>
+              <Tab
+                type="button"
+                $active={homeTab === "hit"}
+                onClick={() => setHomeTab("hit")}
+              >
+                흥행작
+              </Tab>
+              <Tab
+                type="button"
+                $active={homeTab === "indie"}
+                onClick={() => setHomeTab("indie")}
+              >
+                독립영화
+              </Tab>
             </Tabs>
 
             {loading && <Placeholder>영화를 불러오는 중입니다…</Placeholder>}
@@ -405,14 +435,14 @@ function App() {
               <Placeholder>
                 {homeTab === "new"
                   ? "최근 개봉작이 아직 없어요."
-                  : "아직 등록된 영화가 없어요."}
+                  : `${TAB_LABEL[homeTab]} 목록이 아직 없어요.`}
               </Placeholder>
             )}
 
             {!loading && !error && movies.length > 0 && (
               <>
                 <CountText>
-                  {homeTab === "new" ? "신작" : "영화 목록"} {total}편
+                  {TAB_LABEL[homeTab]} {total}편
                 </CountText>
                 <Grid>
                   {movies.map((movie) => (
@@ -442,7 +472,11 @@ function App() {
                         >
                           <CardTitle>{movie.title}</CardTitle>
                           <CardMeta>
-                            {formatYear(movie.releaseDate)} · ★{" "}
+                            {formatYear(movie.releaseDate)}
+                            {formatAudience(movie.audience)
+                              ? ` · 관객 ${formatAudience(movie.audience)}`
+                              : ""}
+                            {" · ★ "}
                             {formatAverage(movie.ratingAverage)} (
                             {movie.ratingCount ?? 0})
                           </CardMeta>
@@ -454,10 +488,12 @@ function App() {
                             disabled={ratingPendingId === movie._id}
                             locked={!completions[movie._id]}
                             onUnlock={() =>
-                              setQuizState({
-                                movieId: movie._id,
-                                pendingRating: null,
-                              })
+                              movie.hasQuiz === false
+                                ? setQuizSubmitMovie(movie)
+                                : setQuizState({
+                                    movieId: movie._id,
+                                    pendingRating: null,
+                                  })
                             }
                             hideScore
                             size={34}
@@ -494,7 +530,9 @@ function App() {
             handleRateAttempt(selectedMovie._id, value)
           }
           onStartQuiz={() =>
-            setQuizState({ movieId: selectedMovie._id, pendingRating: null })
+            selectedMovie.hasQuiz === false
+              ? setQuizSubmitMovie(selectedMovie)
+              : setQuizState({ movieId: selectedMovie._id, pendingRating: null })
           }
           onClose={() => setSelectedMovieId(null)}
         />
@@ -509,6 +547,16 @@ function App() {
           token={token}
           onClose={() => setQuizState(null)}
           onSolved={handleQuizSolved}
+        />
+      )}
+
+      {quizSubmitMovie && (
+        <QuizSubmitModal
+          movieId={quizSubmitMovie._id}
+          movieTitle={quizSubmitMovie.title}
+          token={token}
+          onClose={() => setQuizSubmitMovie(null)}
+          onSubmitted={() => setToast("퀴즈를 제출했어요. 검토 후 등록됩니다.")}
         />
       )}
     </ThemeProvider>
@@ -611,21 +659,26 @@ const Main = styled.main.attrs({ className: "Main" })`
 
 const Tabs = styled.div.attrs({ className: "Tabs" })`
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 999px;
   padding: 5px;
-  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar { display: none; }
 `;
 
 const Tab = styled.button.attrs({ className: "Tab" })`
   border: none;
   border-radius: 999px;
-  padding: 9px 20px;
+  padding: 9px 16px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
   color: ${({ $active, theme }) =>
     $active ? "#fff" : theme.colors.secondaryText};
   background: ${({ $active, theme }) =>

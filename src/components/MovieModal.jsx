@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import styled, { keyframes } from "styled-components";
 import StarRating from "./StarRating.jsx";
 import StarSlider from "./StarSlider.jsx";
+import { formatAudience } from "../format.js";
 import { fetchMovieReviews, fetchMovieRating } from "../api.js";
 
 const modalRoot =
@@ -92,6 +93,9 @@ function MovieModal({
             <Title>{movie.title}</Title>
             <Sub>
               {formatYear(movie.releaseDate)}
+              {formatAudience(movie.audience)
+                ? ` · 관객 ${formatAudience(movie.audience)}`
+                : ""}
               {movie.genres?.length
                 ? ` · ${movie.genres
                     .map((g) => (typeof g === "string" ? g : g?.name))

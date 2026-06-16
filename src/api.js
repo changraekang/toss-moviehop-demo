@@ -34,12 +34,15 @@ export const naverLogin = ({ accessToken, tokenType, state, type }) =>
   });
 
 // --- 영화 ---
-export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, onlyWithQuiz = false, userId } = {}) =>
+export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, onlyWithQuiz = false, userId, minAudience, independent = false, quizFlag = false } = {}) =>
   request(
     `/movies?page=${page}&limit=${limit}&rated=${rated}` +
       (recentDays ? `&recentDays=${recentDays}` : "") +
       (onlyWithQuiz ? "&onlyWithQuiz=true" : "") +
-      (userId ? `&userId=${userId}` : "")
+      (userId ? `&userId=${userId}` : "") +
+      (minAudience ? `&minAudience=${minAudience}` : "") +
+      (independent ? "&independent=true" : "") +
+      (quizFlag ? "&quizFlag=true" : "")
   );
 
 // --- 평점 ---
@@ -63,6 +66,14 @@ export const checkQuiz = ({ quizId, movieId, userAnswer }, token) =>
     method: "POST",
     token,
     body: { quizId, movieId, userAnswer },
+  });
+
+// 사용자 퀴즈 제출 (검토 대기)
+export const submitUserQuiz = ({ movieId, question, options, correctAnswer }, token) =>
+  request("/quiz/submit", {
+    method: "POST",
+    token,
+    body: { movieId, question, options, correctAnswer },
   });
 
 // --- 리뷰 ---
