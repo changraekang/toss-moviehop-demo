@@ -28,12 +28,15 @@ import {
 
 const PAGE_SIZE = 24;
 const RECENT_DAYS = 30; // 신작 탭: 최근 N일 개봉
+const CURRENT_YEAR = new Date().getFullYear(); // 당해년도 탭
 const HIT_AUDIENCE = 5_000_000; // 흥행작 탭: 관객수 하한
 const TAB_LABEL = {
   movies: "영화 목록",
   new: "신작",
+  year: String(CURRENT_YEAR),
   hit: "흥행작 500만+",
   indie: "독립영화",
+  boxoffice: "박스오피스",
   mine: "내 평점",
 };
 
@@ -121,6 +124,7 @@ function App() {
   const [selectedMovieId, setSelectedMovieId] = useState(null);
   const [userRatings, setUserRatings] = useState({});
   const [completions, setCompletions] = useState({}); // { movieId: bool }
+  const [ratedIds, setRatedIds] = useState(() => new Set()); // 평점 준 movieId(브라우즈 숨김)
   const [ratingPendingId, setRatingPendingId] = useState(null);
   const [quizState, setQuizState] = useState(null);
   const [quizSubmitMovie, setQuizSubmitMovie] = useState(null); // 퀴즈 직접 올리기
@@ -153,8 +157,10 @@ function App() {
         } else {
           params.quizFlag = true; // 그 외 탭: 퀴즈 보유여부(hasQuiz)만 표시
           if (homeTab === "new") params.recentDays = RECENT_DAYS; // 신작
+          else if (homeTab === "year") params.year = CURRENT_YEAR; // 당해년도
           else if (homeTab === "hit") params.minAudience = HIT_AUDIENCE; // 흥행작
           else if (homeTab === "indie") params.independent = true; // 독립영화
+          else if (homeTab === "boxoffice") params.boxOffice = true; // 박스오피스(데이터 추후)
         }
         if (homeTab !== "new") params.seed = seedRef.current; // 세션 랜덤(신작 제외)
         if (user?.id) params.userId = user.id; // 각 영화 문제 완료여부(hasCompleted)
@@ -308,9 +314,35 @@ function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // 로그인하면 내 평점 영화 id 세트를 받아 브라우즈 목록에서 숨김
+  useEffect(() => {
+    if (!isLoggedIn || !token) {
+      setRatedIds(new Set());
+      return;
+    }
+    let ignore = false;
+    fetchMyRatings(token)
+      .then((data) => {
+        if (ignore) return;
+        const list = Array.isArray(data?.movies) ? data.movies : [];
+        setRatedIds(new Set(list.map((m) => m._id)));
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [isLoggedIn, token]);
+
   const selectedMovie = useMemo(
     () => movies.find((m) => m._id === selectedMovieId) ?? null,
     [movies, selectedMovieId]
+  );
+
+  // 브라우즈 탭에서는 이미 평점 준 영화 숨김(내 평점 탭은 그대로)
+  const visibleMovies = useMemo(
+    () =>
+      homeTab === "mine" ? movies : movies.filter((m) => !ratedIds.has(m._id)),
+    [movies, ratedIds, homeTab]
   );
 
   const handleLogout = () => {
@@ -330,6 +362,7 @@ function App() {
             m._id === movieId
               ? {
                   ...m,
+                  myRating: payload?.rating ?? rating,
                   ratingAverage: payload?.stats?.average ?? m.ratingAverage,
                   ratingCount: payload?.stats?.count ?? m.ratingCount,
                 }
@@ -340,6 +373,7 @@ function App() {
           ...prev,
           [movieId]: payload?.rating ?? rating,
         }));
+        setRatedIds((prev) => new Set(prev).add(movieId));
         setToast("평점이 등록되었습니다.");
       } catch (err) {
         setToast(`평점 등록 실패: ${err.message}`);
@@ -392,6 +426,10 @@ function App() {
         onHome={() => setView("home")}
         onLogin={() => setView("home")}
         onLogout={handleLogout}
+        onMyRatings={
+          isLoggedIn && view === "home" ? () => setHomeTab("mine") : undefined
+        }
+        myActive={homeTab === "mine"}
       />
 
       <Shell>
@@ -431,6 +469,13 @@ function App() {
               </Tab>
               <Tab
                 type="button"
+                $active={homeTab === "year"}
+                onClick={() => setHomeTab("year")}
+              >
+                {String(CURRENT_YEAR)}
+              </Tab>
+              <Tab
+                type="button"
                 $active={homeTab === "hit"}
                 onClick={() => setHomeTab("hit")}
               >
@@ -445,6 +490,14 @@ function App() {
               </Tab>
               <Tab
                 type="button"
+                $active={homeTab === "boxoffice"}
+                onClick={() => setHomeTab("boxoffice")}
+              >
+                박스오피스
+              </Tab>
+              <Tab
+                type="button"
+                $desktopOnly
                 $active={homeTab === "mine"}
                 onClick={() => setHomeTab("mine")}
               >
@@ -466,11 +519,8 @@ function App() {
 
             {!loading && !error && movies.length > 0 && (
               <>
-                <CountText>
-                  {TAB_LABEL[homeTab]} {total}편
-                </CountText>
                 <Grid>
-                  {movies.map((movie) => (
+                  {visibleMovies.map((movie) => (
                     <Card key={movie._id}>
                       <PosterArea
                         type="button"
@@ -511,7 +561,8 @@ function App() {
                           {homeTab === "mine" ? (
                             <StarSlider
                               value={movie.myRating ?? 0}
-                              disabled
+                              onCommit={(v) => handleRateAttempt(movie._id, v)}
+                              disabled={ratingPendingId === movie._id}
                               hideScore
                               size={24}
                             />
@@ -699,19 +750,23 @@ const Main = styled.main.attrs({ className: "Main" })`
 // TDS Segmented Control: 회색 트랙 + 흰색 선택 pill(그림자)
 const Tabs = styled.div.attrs({ className: "Tabs" })`
   display: flex;
-  gap: 2px;
-  width: 100%;
+  gap: 4px;
   background: ${({ theme }) => theme.colors.surfaceAlt};
   border-radius: 12px;
   padding: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const Tab = styled.button.attrs({ className: "Tab" })`
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 auto;
   border: none;
   border-radius: 9px;
-  padding: 9px 4px;
+  padding: 9px 14px;
   font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
@@ -725,12 +780,8 @@ const Tab = styled.button.attrs({ className: "Tab" })`
       ? "0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04)"
       : "none"};
   transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-`;
-
-const CountText = styled.div.attrs({ className: "CountText" })`
-  font-size: 13px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.secondaryText};
+  ${({ $desktopOnly }) =>
+    $desktopOnly && "@media (max-width: 559px) { display: none; }"}
 `;
 
 const Placeholder = styled.div.attrs({ className: "Placeholder" })`

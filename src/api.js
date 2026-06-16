@@ -34,7 +34,7 @@ export const naverLogin = ({ accessToken, tokenType, state, type }) =>
   });
 
 // --- 영화 ---
-export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, onlyWithQuiz = false, userId, minAudience, independent = false, quizFlag = false, seed } = {}) =>
+export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, onlyWithQuiz = false, userId, minAudience, independent = false, quizFlag = false, year, boxOffice = false, seed } = {}) =>
   request(
     `/movies?page=${page}&limit=${limit}&rated=${rated}` +
       (recentDays ? `&recentDays=${recentDays}` : "") +
@@ -43,6 +43,8 @@ export const fetchMovies = ({ page = 0, limit = 24, rated = false, recentDays, o
       (minAudience ? `&minAudience=${minAudience}` : "") +
       (independent ? "&independent=true" : "") +
       (quizFlag ? "&quizFlag=true" : "") +
+      (boxOffice ? "&boxOffice=true" : "") +
+      (year ? `&year=${year}` : "") +
       (seed !== undefined ? `&seed=${seed}` : "")
   );
 

@@ -3,7 +3,7 @@ import styled from "styled-components";
 const LOGO = "https://assets.movie-hop.com/logo/naver-movie-hop-logo.png";
 
 // 상단 헤더 (로고 이미지 + 로그인 상태). 스티키 + 블러.
-function Header({ user, isLoggedIn, onHome, onLogin, onLogout }) {
+function Header({ user, isLoggedIn, onHome, onLogin, onLogout, onMyRatings, myActive }) {
   return (
     <Bar>
       <Inner>
@@ -16,6 +16,15 @@ function Header({ user, isLoggedIn, onHome, onLogin, onLogout }) {
           {isLoggedIn ? (
             <>
               <UserName>{user?.username || user?.email || "회원"}</UserName>
+              {onMyRatings && (
+                <MineButton
+                  type="button"
+                  $active={myActive}
+                  onClick={onMyRatings}
+                >
+                  내 평점
+                </MineButton>
+              )}
               <GhostButton type="button" onClick={onLogout}>
                 로그아웃
               </GhostButton>
@@ -127,6 +136,25 @@ const GhostButton = styled.button.attrs({ className: "GhostButton" })`
   font-weight: 600;
   cursor: pointer;
   min-height: 38px;
+`;
+
+const MineButton = styled.button.attrs({ className: "MineButton" })`
+  border: 1px solid
+    ${({ $active, theme }) =>
+      $active ? theme.colors.primary : theme.colors.border};
+  border-radius: 999px;
+  background: ${({ $active, theme }) =>
+    $active ? theme.colors.primary : theme.colors.surfaceAlt};
+  color: ${({ $active, theme }) => ($active ? "#fff" : theme.colors.text)};
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 38px;
+
+  @media (min-width: 560px) {
+    display: none;
+  }
 `;
 
 export default Header;
