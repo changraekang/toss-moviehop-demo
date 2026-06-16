@@ -39,17 +39,17 @@ const TAB_LABEL = {
 
 const theme = {
   colors: {
-    background: "#faf1dc", // 크림 배경
+    background: "#f2f4f6", // TDS grey100 (앱 배경)
     surface: "#ffffff", // 카드(흰색)
-    surfaceAlt: "#fbeacb", // 입력/보조 표면(연한 크림)
-    primary: "#6b4a26", // 다크브라운 포인트
-    primaryHover: "#543a1e",
-    text: "#3a2a18", // 본문(짙은 브라운)
-    secondaryText: "#9a7e58", // 보조 텍스트
-    border: "#e6d2a8", // 탄 보더
-    gold: "#c98a2e", // 별점 앰버
-    success: "#2e9e73",
-    error: "#c0392b",
+    surfaceAlt: "#f2f4f6", // 입력/보조 표면(grey100)
+    primary: "#3182f6", // Toss Blue
+    primaryHover: "#2272eb",
+    text: "#191f28", // grey900
+    secondaryText: "#6b7684", // grey600
+    border: "#e5e8eb", // grey200
+    gold: "#ffb400", // 별점 앰버(유지)
+    success: "#15c47e", // toss green
+    error: "#f04452", // toss red
     naver: "#03c75a",
   },
 };
@@ -513,11 +513,11 @@ function App() {
                               value={movie.myRating ?? 0}
                               disabled
                               hideScore
-                              size={34}
+                              size={24}
                             />
                           ) : (
                             <StarSlider
-                              value={userRatings[movie._id] ?? 0}
+                              value={0}
                               onCommit={(v) => handleRateAttempt(movie._id, v)}
                               disabled={ratingPendingId === movie._id}
                               locked={!completions[movie._id]}
@@ -530,7 +530,7 @@ function App() {
                                     })
                               }
                               hideScore
-                              size={34}
+                              size={24}
                             />
                           )}
                         </RateRow>
@@ -742,7 +742,7 @@ const Placeholder = styled.div.attrs({ className: "Placeholder" })`
 const Grid = styled.div.attrs({ className: "Grid" })`
   display: grid;
   grid-template-columns: 1fr; /* 모바일: 한 줄 리스트 */
-  gap: 10px;
+  gap: 14px;
 
   @media (min-width: 560px) {
     grid-template-columns: repeat(3, 1fr);
@@ -760,8 +760,8 @@ const Card = styled.div.attrs({ className: "Card" })`
   align-items: center;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 14px;
-  padding: 10px 84px 10px 10px;
+  border-radius: 16px;
+  padding: 14px 78px 14px 14px;
 
   @media (min-width: 560px) {
     flex-direction: column;
@@ -809,7 +809,7 @@ const PosterWrap = styled.div.attrs({ className: "PosterWrap" })`
   overflow: hidden;
   background: ${({ theme }) => theme.colors.surfaceAlt};
   aspect-ratio: 2 / 3;
-  box-shadow: 0 6px 16px rgba(104, 71, 37, 0.14);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.18s ease;
 `;
 
@@ -818,7 +818,7 @@ const PosterArea = styled.button.attrs({ className: "PosterArea" })`
   background: transparent;
   padding: 0;
   cursor: pointer;
-  width: 96px;
+  width: 80px;
   flex-shrink: 0;
 
   @media (min-width: 560px) {
@@ -826,7 +826,7 @@ const PosterArea = styled.button.attrs({ className: "PosterArea" })`
   }
   @media (hover: hover) {
     &:hover ${PosterWrap} {
-      box-shadow: 0 12px 26px rgba(107, 74, 38, 0.22);
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.12);
     }
   }
 `;
@@ -853,7 +853,7 @@ const CardBody = styled.div.attrs({ className: "CardBody" })`
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 `;
 
 const Info = styled.button.attrs({ className: "Info" })`
@@ -898,6 +898,8 @@ const CardRate = styled.span.attrs({ className: "CardRate" })`
 const RateRow = styled.div.attrs({ className: "RateRow" })`
   display: flex;
   align-items: center;
+  max-width: 100%;
+  overflow: hidden;
 `;
 
 

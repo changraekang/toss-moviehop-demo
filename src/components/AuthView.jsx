@@ -35,7 +35,7 @@ const Card = styled.section.attrs({ className: "Card" })`
   max-width: 380px;
   width: 100%;
   align-self: center;
-  box-shadow: 0 14px 36px rgba(104, 71, 37, 0.12);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.08);
 
   @media (min-width: 768px) {
     padding: 34px;
@@ -61,7 +61,7 @@ const Notice = styled.div.attrs({ className: "Notice" })`
   padding: 12px 14px;
   font-size: 14px;
   text-align: center;
-  background: rgba(107, 74, 38, 0.08);
+  background: rgba(49, 130, 246, 0.08);
   color: ${({ theme }) => theme.colors.primary};
 `;
 

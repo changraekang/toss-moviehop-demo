@@ -101,10 +101,10 @@ function StarSlider({
 }
 
 export function scoreColor(v, disabled) {
-  if (disabled || v <= 0) return "#c7b48f"; // 잠금/미평가
-  if (v >= 3.5) return "#2e9e73"; // 높음(초록)
-  if (v >= 2.0) return "#c98a2e"; // 보통(앰버)
-  return "#c0392b"; // 낮음(빨강)
+  if (disabled || v <= 0) return "#b0b8c1"; // 잠금/미평가 (grey400)
+  if (v >= 3.5) return "#15c47e"; // 높음(green)
+  if (v >= 2.0) return "#ff9500"; // 보통(amber)
+  return "#f04452"; // 낮음(red)
 }
 
 const Wrap = styled.div.attrs({ className: "Wrap" })`
@@ -140,7 +140,7 @@ const Star = styled.span.attrs({ className: "Star" })`
 `;
 
 const Base = styled.span.attrs({ className: "Base" })`
-  color: #e6d2a8;
+  color: #e5e8eb;
 `;
 
 const Fill = styled.span.attrs({ className: "Fill" })`
@@ -160,7 +160,7 @@ const Lock = styled.button.attrs({ className: "Lock" })`
   border: none;
   cursor: pointer;
   border-radius: 10px;
-  background: rgba(251, 234, 203, 0.5);
+  background: rgba(242, 244, 246, 0.7);
 
   span {
     display: flex;
@@ -173,7 +173,7 @@ const Lock = styled.button.attrs({ className: "Lock" })`
     color: #fff;
     font-size: 22px;
     font-weight: 800;
-    box-shadow: 0 4px 12px rgba(104, 71, 37, 0.3);
+    box-shadow: 0 4px 12px rgba(49, 130, 246, 0.25);
   }
   &:active span {
     transform: scale(0.94);

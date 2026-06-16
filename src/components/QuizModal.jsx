@@ -242,7 +242,7 @@ const Header = styled.header.attrs({ className: "Header" })`
 
 const Badge = styled.span.attrs({ className: "Badge" })`
   display: inline-block;
-  background: rgba(107, 74, 38, 0.12);
+  background: rgba(49, 130, 246, 0.1);
   color: ${({ theme }) => theme.colors.primary};
   font-size: 11px;
   font-weight: 800;
@@ -319,11 +319,11 @@ const OptionButton = styled.button.attrs({ className: "OptionButton" })`
         : theme.colors.border};
   background: ${({ $correct, $wrong, $picked, theme }) =>
     $correct
-      ? "rgba(46,158,115,0.12)"
+      ? "rgba(21,196,126,0.12)"
       : $wrong
-      ? "rgba(192,57,43,0.12)"
+      ? "rgba(240,68,82,0.12)"
       : $picked
-      ? "rgba(107,74,38,0.10)"
+      ? "rgba(49,130,246,0.1)"
       : theme.colors.surfaceAlt};
 
   &:disabled {
@@ -355,8 +355,8 @@ const LockBox = styled.div.attrs({ className: "LockBox" })`
   gap: 6px;
   padding: 22px 14px;
   border-radius: 14px;
-  background: rgba(192, 57, 43, 0.08);
-  border: 1px solid rgba(192, 57, 43, 0.18);
+  background: rgba(240, 68, 82, 0.08);
+  border: 1px solid rgba(240, 68, 82, 0.18);
 `;
 
 const LockMark = styled.span.attrs({ className: "LockMark" })`

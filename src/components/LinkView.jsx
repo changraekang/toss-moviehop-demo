@@ -88,7 +88,7 @@ const Notice = styled.div.attrs({ className: "Notice" })`
   padding: 12px 14px;
   font-size: 14px;
   text-align: center;
-  background: rgba(79, 140, 255, 0.12);
+  background: rgba(49, 130, 246, 0.12);
   color: ${({ theme }) => theme.colors.primary};
 `;
 

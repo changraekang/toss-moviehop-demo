@@ -179,7 +179,7 @@ const Header = styled.header`
 
 const Badge = styled.span`
   display: inline-block;
-  background: rgba(107, 74, 38, 0.12);
+  background: rgba(49, 130, 246, 0.1);
   color: ${({ theme }) => theme.colors.primary};
   font-size: 11px;
   font-weight: 800;

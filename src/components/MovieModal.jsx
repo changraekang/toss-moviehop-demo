@@ -268,7 +268,7 @@ const Poster = styled.img.attrs({ className: "Poster" })`
   width: 104px;
   border-radius: 12px;
   flex-shrink: 0;
-  box-shadow: 0 8px 20px rgba(104, 71, 37, 0.18);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 
   @media (min-width: 768px) {
     width: 150px;
@@ -466,7 +466,7 @@ const QuizLock = styled.button.attrs({ className: "QuizLock" })`
     color: #fff;
     font-size: 21px;
     font-weight: 800;
-    box-shadow: 0 6px 16px rgba(104, 71, 37, 0.3);
+    box-shadow: 0 6px 16px rgba(49, 130, 246, 0.25);
   }
   &:active span {
     transform: scale(0.94);
