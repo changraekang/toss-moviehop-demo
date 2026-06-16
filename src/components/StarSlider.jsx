@@ -103,7 +103,7 @@ function StarSlider({
 export function scoreColor(v, disabled) {
   if (disabled || v <= 0) return "#b0b8c1"; // 잠금/미평가 (grey400)
   if (v >= 3.5) return "#15c47e"; // 높음(green)
-  if (v >= 2.0) return "#ff9500"; // 보통(amber)
+  if (v >= 2.0) return "#fe9800"; // 보통(TDS orange500)
   return "#f04452"; // 낮음(red)
 }
 
@@ -148,7 +148,7 @@ const Fill = styled.span.attrs({ className: "Fill" })`
   inset: 0;
   overflow: hidden;
   white-space: nowrap;
-  color: #ffb400;
+  color: #ffb331;
 `;
 
 const Lock = styled.button.attrs({ className: "Lock" })`

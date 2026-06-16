@@ -79,7 +79,7 @@ const StarFill = styled.span.attrs({ className: "StarFill" })`
   inset: 0;
   overflow: hidden;
   white-space: nowrap;
-  color: #ffb400;
+  color: #ffb331;
 `;
 
 const HalfHit = styled.button.attrs({ className: "HalfHit" })`

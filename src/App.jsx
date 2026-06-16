@@ -47,7 +47,7 @@ const theme = {
     text: "#191f28", // grey900
     secondaryText: "#6b7684", // grey600
     border: "#e5e8eb", // grey200
-    gold: "#ffb400", // 별점 앰버(유지)
+    gold: "#ffb331", // 별점 앰버 = TDS yellow600
     success: "#15c47e", // toss green
     error: "#f04452", // toss red
     naver: "#03c75a",
