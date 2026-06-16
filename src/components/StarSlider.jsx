@@ -140,7 +140,7 @@ const Star = styled.span.attrs({ className: "Star" })`
 `;
 
 const Base = styled.span.attrs({ className: "Base" })`
-  color: #e5e8eb;
+  color: #b0b8c1;
 `;
 
 const Fill = styled.span.attrs({ className: "Fill" })`

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import styled, { ThemeProvider, createGlobalStyle } from "styled-components";
+import styled, { ThemeProvider, createGlobalStyle, keyframes } from "styled-components";
 import Header from "./components/Header.jsx";
 import AuthView from "./components/AuthView.jsx";
 import LinkView from "./components/LinkView.jsx";
@@ -452,7 +452,7 @@ function App() {
               </Tab>
             </Tabs>
 
-            {loading && <Placeholder>영화를 불러오는 중입니다…</Placeholder>}
+            {loading && <SkeletonList />}
             {error && !loading && <Placeholder $error>{error}</Placeholder>}
             {!loading && !error && movies.length === 0 && (
               <Placeholder>
@@ -696,33 +696,35 @@ const Main = styled.main.attrs({ className: "Main" })`
   gap: 16px;
 `;
 
+// TDS Segmented Control: 회색 트랙 + 흰색 선택 pill(그림자)
 const Tabs = styled.div.attrs({ className: "Tabs" })`
   display: flex;
-  gap: 6px;
-  background: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 999px;
-  padding: 5px;
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  &::-webkit-scrollbar { display: none; }
+  gap: 2px;
+  width: 100%;
+  background: ${({ theme }) => theme.colors.surfaceAlt};
+  border-radius: 12px;
+  padding: 4px;
 `;
 
 const Tab = styled.button.attrs({ className: "Tab" })`
+  flex: 1;
+  min-width: 0;
   border: none;
-  border-radius: 999px;
-  padding: 9px 16px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  flex-shrink: 0;
+  border-radius: 9px;
+  padding: 9px 4px;
+  font-size: 13px;
   white-space: nowrap;
+  cursor: pointer;
+  font-weight: ${({ $active }) => ($active ? 700 : 600)};
   color: ${({ $active, theme }) =>
-    $active ? "#fff" : theme.colors.secondaryText};
+    $active ? theme.colors.text : theme.colors.secondaryText};
   background: ${({ $active, theme }) =>
-    $active ? theme.colors.primary : "transparent"};
-  transition: background 0.15s ease, color 0.15s ease;
+    $active ? theme.colors.surface : "transparent"};
+  box-shadow: ${({ $active }) =>
+    $active
+      ? "0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04)"
+      : "none"};
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 `;
 
 const CountText = styled.div.attrs({ className: "CountText" })`
@@ -898,8 +900,6 @@ const CardRate = styled.span.attrs({ className: "CardRate" })`
 const RateRow = styled.div.attrs({ className: "RateRow" })`
   display: flex;
   align-items: center;
-  max-width: 100%;
-  overflow: hidden;
 `;
 
 
@@ -914,5 +914,87 @@ const LoadMore = styled.div.attrs({ className: "LoadMore" })`
   font-weight: 500;
   color: ${({ theme }) => theme.colors.secondaryText};
 `;
+
+// ── TDS Skeleton (로딩 placeholder) ──
+const shimmer = keyframes`
+  0% { background-position: -180px 0; }
+  100% { background-position: calc(180px + 100%) 0; }
+`;
+
+const SkelBlock = styled.div.attrs({ className: "SkelBlock" })`
+  background-color: #e7eaee;
+  background-image: linear-gradient(
+    90deg,
+    #e7eaee 0px,
+    #f2f4f6 90px,
+    #e7eaee 180px
+  );
+  background-size: 180px 100%;
+  background-repeat: no-repeat;
+  border-radius: 8px;
+  animation: ${shimmer} 1.3s ease-in-out infinite;
+`;
+
+const SkelCard = styled.div.attrs({ className: "SkelCard" })`
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 16px;
+  padding: 14px;
+
+  @media (min-width: 560px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+`;
+
+const SkelPoster = styled(SkelBlock)`
+  width: 80px;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  flex-shrink: 0;
+
+  @media (min-width: 560px) {
+    width: 100%;
+  }
+`;
+
+const SkelBody = styled.div.attrs({ className: "SkelBody" })`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const SkelLine = styled(SkelBlock)`
+  height: ${({ $h }) => $h || 14}px;
+  width: ${({ $w }) => $w || "100%"};
+`;
+
+function SkeletonList() {
+  return (
+    <Grid>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <SkelCard key={i}>
+          <SkelPoster />
+          <SkelBody>
+            <SkelLine $h={18} $w="72%" />
+            <SkelLine $h={13} $w="45%" />
+            <SkelLine $h={13} $w="32%" />
+            <SkelLine $h={26} $w="60%" />
+          </SkelBody>
+        </SkelCard>
+      ))}
+    </Grid>
+  );
+}
 
 export default App;
