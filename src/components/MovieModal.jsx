@@ -121,14 +121,11 @@ function MovieModal({
               <StarSlider
                 value={myRating ?? 0}
                 onCommit={(v) => onRateAttempt(v)}
-                disabled={ratingPending || !quizCompleted}
+                disabled={ratingPending}
+                locked={!quizCompleted}
+                onUnlock={onStartQuiz}
                 size={38}
               />
-              {!quizCompleted && (
-                <QuizLock type="button" onClick={onStartQuiz} aria-label="문제 풀기">
-                  <span>?</span>
-                </QuizLock>
-              )}
             </StarWrap>
             <RateHint>
               {ratingPending
@@ -444,33 +441,5 @@ const StarWrap = styled.div.attrs({ className: "StarWrap" })`
   align-self: flex-start;
 `;
 
-const QuizLock = styled.button.attrs({ className: "QuizLock" })`
-  position: absolute;
-  inset: -6px -12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  cursor: pointer;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.45);
-
-  span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 999px;
-    background: ${({ theme }) => theme.colors.primary};
-    color: #fff;
-    font-size: 21px;
-    font-weight: 800;
-    box-shadow: 0 6px 16px rgba(49, 130, 246, 0.25);
-  }
-  &:active span {
-    transform: scale(0.94);
-  }
-`;
 
 export default MovieModal;
