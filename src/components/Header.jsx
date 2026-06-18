@@ -15,7 +15,9 @@ function Header({ user, isLoggedIn, onHome, onLogin, onLogout, onWithdraw, onMyR
         <Right>
           {isLoggedIn ? (
             <>
-              <UserName>{user?.username || user?.email || "회원"}</UserName>
+              <UserName>
+                {(user?.nickname || user?.username || user?.email || "회원").split("##")[0]}
+              </UserName>
               {onMyRatings && (
                 <MineButton
                   type="button"
