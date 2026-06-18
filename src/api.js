@@ -97,3 +97,7 @@ export const verifyNaverLink = ({ code, accessToken, tokenType }) =>
     method: "POST",
     body: { code, access_token: accessToken, token_type: tokenType },
   });
+
+// --- 회원 탈퇴 (7일 대기 후 개인정보 삭제, 별점 보존) ---
+export const withdrawAccount = (token) =>
+  request("/auth/withdraw", { method: "POST", token });

@@ -3,7 +3,7 @@ import styled from "styled-components";
 const LOGO = "https://assets.movie-hop.com/logo/naver-movie-hop-logo.png";
 
 // 상단 헤더 (로고 이미지 + 로그인 상태). 스티키 + 블러.
-function Header({ user, isLoggedIn, onHome, onLogin, onLogout, onMyRatings, myActive }) {
+function Header({ user, isLoggedIn, onHome, onLogin, onLogout, onWithdraw, onMyRatings, myActive }) {
   return (
     <Bar>
       <Inner>
@@ -28,6 +28,11 @@ function Header({ user, isLoggedIn, onHome, onLogin, onLogout, onMyRatings, myAc
               <GhostButton type="button" onClick={onLogout}>
                 로그아웃
               </GhostButton>
+              {onWithdraw && (
+                <WithdrawButton type="button" onClick={onWithdraw}>
+                  탈퇴
+                </WithdrawButton>
+              )}
             </>
           ) : (
             <PrimaryButton type="button" onClick={onLogin}>
@@ -134,6 +139,17 @@ const GhostButton = styled.button.attrs({ className: "GhostButton" })`
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
+  cursor: pointer;
+  min-height: 38px;
+`;
+
+const WithdrawButton = styled.button.attrs({ className: "WithdrawButton" })`
+  border: none;
+  background: transparent;
+  color: ${({ theme }) => theme.colors.secondaryText};
+  padding: 8px 6px;
+  font-size: 12px;
+  text-decoration: underline;
   cursor: pointer;
   min-height: 38px;
 `;

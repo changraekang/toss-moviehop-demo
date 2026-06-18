@@ -18,6 +18,7 @@ import {
   fetchQuizCompletion,
   naverLogin,
   verifyNaverLink,
+  withdrawAccount,
 } from "./api.js";
 import {
   isNaverCallbackPath,
@@ -352,6 +353,22 @@ function App() {
     setToast("로그아웃되었습니다.");
   };
 
+  const handleWithdraw = async () => {
+    const ok = window.confirm(
+      "정말 탈퇴하시겠어요?\n\n탈퇴 신청 후 7일이 지나면 개인정보가 삭제돼요.\n7일 안에 다시 로그인하면 탈퇴가 취소됩니다.\n(남긴 별점은 통계를 위해 보존돼요.)"
+    );
+    if (!ok) return;
+    try {
+      const res = await withdrawAccount(token);
+      signOut();
+      setUserRatings({});
+      setMovies([]);
+      setToast(res?.message || "탈퇴가 신청되었어요. 7일 후 개인정보가 삭제됩니다.");
+    } catch (err) {
+      setToast(`탈퇴 신청 실패: ${err.message}`);
+    }
+  };
+
   const doSubmitRating = useCallback(
     async (movieId, rating) => {
       setRatingPendingId(movieId);
@@ -426,6 +443,7 @@ function App() {
         onHome={() => setView("home")}
         onLogin={() => setView("home")}
         onLogout={handleLogout}
+        onWithdraw={handleWithdraw}
         onMyRatings={
           isLoggedIn && view === "home" ? () => setHomeTab("mine") : undefined
         }
